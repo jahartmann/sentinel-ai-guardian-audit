@@ -19,8 +19,8 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    hostname: '',
-    ip: '',
+    ip: '', // Primäres Feld
+    hostname: '', // Optional
     port: 22,
     username: '',
     password: '',
@@ -31,10 +31,10 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.hostname || !formData.ip || !formData.username) {
+    if (!formData.name || !formData.ip || !formData.username) {
       toast({
         title: 'Fehler',
-        description: 'Bitte füllen Sie alle Pflichtfelder aus.',
+        description: 'Bitte füllen Sie Name, IP-Adresse und Benutzername aus.',
         variant: 'destructive'
       });
       return;
@@ -114,7 +114,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="hostname">Hostname *</Label>
+              <Label htmlFor="hostname">Hostname (optional)</Label>
               <Input
                 id="hostname"
                 value={formData.hostname}

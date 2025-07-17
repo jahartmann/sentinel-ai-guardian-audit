@@ -3,8 +3,8 @@ import { useState, useCallback, useEffect } from 'react';
 export interface Server {
   id: string;
   name: string;
-  hostname: string;
-  ip: string;
+  ip: string; // Primäre Verbindungsadresse
+  hostname?: string; // Optional, nur für Anzeige/Dokumentation
   port: number;
   username: string;
   password?: string;
@@ -89,7 +89,8 @@ export const useServerManagement = () => {
       return false;
     }
 
-    console.log(`Testing connection to ${server.hostname} (${server.ip}:${server.port})`);
+    const displayName = server.hostname || server.ip;
+    console.log(`Testing connection to ${displayName} (${server.ip}:${server.port})`);
     updateServerStatus(serverId, 'warning');
     
     try {
@@ -101,20 +102,20 @@ export const useServerManagement = () => {
       const connection = await sshService.connect(server);
       
       if (connection.status === 'connected') {
-        console.log(`Advanced connectivity successful to ${server.hostname}`);
+        console.log(`Advanced connectivity successful to ${displayName}`);
         updateServerStatus(serverId, 'online');
         
         // Disconnect nach Test
         await sshService.disconnect(connection.id);
         return true;
       } else {
-        console.log(`Connection failed to ${server.hostname}: ${connection.error}`);
+        console.log(`Connection failed to ${displayName}: ${connection.error}`);
         updateServerStatus(serverId, 'critical');
         return false;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unbekannter Verbindungsfehler';
-      console.error(`Connection test failed for ${server.hostname}:`, errorMessage);
+      console.error(`Connection test failed for ${displayName}:`, errorMessage);
       updateServerStatus(serverId, 'critical');
       return false;
     }
@@ -127,7 +128,8 @@ export const useServerManagement = () => {
       return null;
     }
 
-    console.log(`Starting comprehensive audit for ${server.hostname}`);
+    const displayName = server.hostname || server.ip;
+    console.log(`Starting comprehensive audit for ${displayName}`);
     setIsScanning(serverId);
     
     const auditId = `audit-${Date.now()}`;
@@ -208,7 +210,7 @@ export const useServerManagement = () => {
       await sshService.disconnect(connection.id);
       setIsScanning(null);
       
-      console.log(`Audit completed for ${server.hostname} with score: ${completedAudit.overallScore}`);
+      console.log(`Audit completed for ${displayName} with score: ${completedAudit.overallScore}`);
       return completedAudit;
       
     } catch (error) {
@@ -291,8 +293,8 @@ export const useServerManagement = () => {
         .filter(host => host.services.some(s => s.service === 'SSH'))
         .map(host => ({
           name: host.hostname || `Server-${host.ip.split('.').pop()}`,
-          hostname: host.hostname || host.ip,
           ip: host.ip,
+          hostname: host.hostname, // Optional hostname
           port: 22,
           username: '',
           connectionType: 'ssh' as const

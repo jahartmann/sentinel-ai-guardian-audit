@@ -29,6 +29,16 @@ export class RealSSHService {
     logger.info('ssh', '🚀 SSH Service initialized for browser-based connections');
   }
 
+  // Helper für einheitliche Anzeige des Server-Namens
+  private getServerDisplayName(server: Server): string {
+    return server.hostname || server.ip;
+  }
+
+  // Helper für Connection-String
+  private getConnectionString(server: Server): string {
+    return `${this.getServerDisplayName(server)}:${server.port}`;
+  }
+
   async connect(server: Server): Promise<RealSSHConnection> {
     const connectionId = `ssh_${server.id}_${Date.now()}`;
     
@@ -39,9 +49,10 @@ export class RealSSHService {
     };
 
     this.connections.set(connectionId, connection);
-    logger.sshConnect(`${server.hostname}:${server.port}`, { 
+    logger.sshConnect(this.getConnectionString(server), { 
       serverId: server.id, 
       ip: server.ip,
+      hostname: server.hostname,
       connectionId 
     });
 
@@ -50,7 +61,7 @@ export class RealSSHService {
       // implementieren wir eine realistische Alternative
       return await this.establishBrowserSSHConnection(connection);
     } catch (error) {
-      logger.sshConnectFailed(`${server.hostname}:${server.port}`, error as Error, { 
+      logger.sshConnectFailed(this.getConnectionString(server), error as Error, {
         serverId: server.id,
         connectionId 
       });
@@ -69,11 +80,11 @@ export class RealSSHService {
       { step: 'data_collection', status: 'pending', message: 'Datensammlung initialisieren...' }
     ];
 
-    logger.info('ssh', `🔄 Starting browser SSH workflow for ${server.hostname}`, { steps });
+    logger.info('ssh', `🔄 Starting browser SSH workflow for ${this.getServerDisplayName(server)}`, { steps });
 
     // Schritt 1: Netzwerk-Test
     steps[0].status = 'running';
-    logger.debug('ssh', `🌐 Testing network connectivity to ${server.hostname}`, { 
+    logger.debug('ssh', `🌐 Testing network connectivity to ${this.getServerDisplayName(server)}`, { 
       step: 'network_test',
       ip: server.ip,
       port: server.port 
@@ -82,46 +93,46 @@ export class RealSSHService {
     const networkOk = await this.performAdvancedNetworkTest(server);
     if (!networkOk) {
       steps[0].status = 'failed';
-      const errorMsg = `❌ Server ${server.hostname} (${server.ip}:${server.port}) nicht erreichbar`;
+      const errorMsg = `❌ Server ${this.getServerDisplayName(server)} (${server.ip}:${server.port}) nicht erreichbar`;
       logger.error('ssh', errorMsg, { step: 'network_test' });
       throw new Error(errorMsg);
     }
 
     steps[0].status = 'completed';
-    logger.info('ssh', `✅ Network connectivity confirmed for ${server.hostname}`, { step: 'network_test' });
+    logger.info('ssh', `✅ Network connectivity confirmed for ${this.getServerDisplayName(server)}`, { step: 'network_test' });
 
     // Schritt 2: Terminal-Session vorbereiten
     steps[1].status = 'running';
-    logger.debug('ssh', `💻 Setting up terminal session for ${server.hostname}`, { step: 'terminal_setup' });
+    logger.debug('ssh', `💻 Setting up terminal session for ${this.getServerDisplayName(server)}`, { step: 'terminal_setup' });
     
     await this.setupTerminalSession(connection);
     steps[1].status = 'completed';
-    logger.info('ssh', `✅ Terminal session ready for ${server.hostname}`, { step: 'terminal_setup' });
+    logger.info('ssh', `✅ Terminal session ready for ${this.getServerDisplayName(server)}`, { step: 'terminal_setup' });
 
     // Schritt 3: SSH-Alternative (WebSocket, HTTP API, etc.)
     steps[2].status = 'running';
-    logger.debug('ssh', `🔧 Implementing SSH alternative for ${server.hostname}`, { step: 'ssh_alternative' });
+    logger.debug('ssh', `🔧 Implementing SSH alternative for ${this.getServerDisplayName(server)}`, { step: 'ssh_alternative' });
     
     const sshAlternative = await this.implementSSHAlternative(server);
     if (!sshAlternative) {
       steps[2].status = 'failed';
-      logger.warn('ssh', `⚠️  SSH alternative not available for ${server.hostname}`, { step: 'ssh_alternative' });
+      logger.warn('ssh', `⚠️  SSH alternative not available for ${this.getServerDisplayName(server)}`, { step: 'ssh_alternative' });
       // Nicht kritisch - fortfahren
     } else {
       steps[2].status = 'completed';
-      logger.info('ssh', `✅ SSH alternative established for ${server.hostname}`, { step: 'ssh_alternative' });
+      logger.info('ssh', `✅ SSH alternative established for ${this.getServerDisplayName(server)}`, { step: 'ssh_alternative' });
     }
 
     // Schritt 4: Datensammlung
     steps[3].status = 'running';
-    logger.sshDataCollection(server.hostname, 'initialization');
+    logger.sshDataCollection(this.getServerDisplayName(server), 'initialization');
     
     await this.initializeDataCollection(connection);
     steps[3].status = 'completed';
-    logger.sshDataCollection(server.hostname, 'completed');
+    logger.sshDataCollection(this.getServerDisplayName(server), 'completed');
 
     connection.status = 'connected';
-    logger.sshConnectSuccess(`${server.hostname}:${server.port}`, { 
+    logger.sshConnectSuccess(this.getConnectionString(server), { 
       serverId: server.id,
       connectionId: connection.id,
       steps: steps.length
@@ -131,7 +142,7 @@ export class RealSSHService {
   }
 
   private async performAdvancedNetworkTest(server: Server): Promise<boolean> {
-    logger.debug('ssh', `🔍 Performing advanced network test for ${server.hostname}`, {
+    logger.debug('ssh', `🔍 Performing advanced network test for ${this.getServerDisplayName(server)}`, {
       tests: ['ping', 'port_scan', 'trace_route']
     });
 
@@ -146,7 +157,7 @@ export class RealSSHService {
       const results = await Promise.allSettled(tests);
       const successful = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
       
-      logger.info('ssh', `📊 Network test results for ${server.hostname}`, {
+      logger.info('ssh', `📊 Network test results for ${this.getServerDisplayName(server)}`, {
         successful,
         total: tests.length,
         percentage: (successful / tests.length) * 100
@@ -154,7 +165,7 @@ export class RealSSHService {
 
       return successful > 0; // Mindestens ein Test erfolgreich
     } catch (error) {
-      logger.error('ssh', `❌ Network test failed for ${server.hostname}`, {}, error as Error);
+      logger.error('ssh', `❌ Network test failed for ${this.getServerDisplayName(server)}`, {}, error as Error);
       return false;
     }
   }
@@ -267,16 +278,16 @@ export class RealSSHService {
   private async setupTerminalSession(connection: RealSSHConnection): Promise<void> {
     const { server } = connection;
     
-    logger.debug('ssh', `💻 Setting up terminal session for ${server.hostname}`, {
+    logger.debug('ssh', `💻 Setting up terminal session for ${this.getServerDisplayName(server)}`, {
       type: 'browser_terminal'
     });
 
     // Browser-Terminal simulieren oder echtes Terminal öffnen
     if (this.canOpenSystemTerminal()) {
-      logger.info('ssh', `🖥️  Opening system terminal for ${server.hostname}`);
+      logger.info('ssh', `🖥️  Opening system terminal for ${this.getServerDisplayName(server)}`);
       await this.openSystemTerminal(server);
     } else {
-      logger.info('ssh', `🌐 Setting up browser terminal for ${server.hostname}`);
+      logger.info('ssh', `🌐 Setting up browser terminal for ${this.getServerDisplayName(server)}`);
       this.setupBrowserTerminal(connection);
     }
   }
@@ -289,7 +300,7 @@ export class RealSSHService {
 
   private async openSystemTerminal(server: Server): Promise<void> {
     // In einer echten Desktop-App könnte hier ein Terminal geöffnet werden
-    logger.info('ssh', `📋 Suggested terminal command for ${server.hostname}`, {
+    logger.info('ssh', `📋 Suggested terminal command for ${this.getServerDisplayName(server)}`, {
       command: `ssh ${server.username}@${server.ip} -p ${server.port}`,
       alternative: `ssh-copy-id ${server.username}@${server.ip}`
     });
@@ -300,7 +311,7 @@ export class RealSSHService {
   }
 
   private setupBrowserTerminal(connection: RealSSHConnection): void {
-    logger.debug('ssh', `🌐 Browser terminal setup for ${connection.server.hostname}`);
+    logger.debug('ssh', `🌐 Browser terminal setup for ${this.getServerDisplayName(connection.server)}`);
     
     // Simuliere Terminal-Interface
     connection.terminal = {
@@ -314,7 +325,7 @@ export class RealSSHService {
 
   private displayTerminalInstructions(server: Server): void {
     const instructions = [
-      `# SSH Verbindung zu ${server.hostname}`,
+      `# SSH Verbindung zu ${this.getServerDisplayName(server)}`,
       `ssh ${server.username}@${server.ip} -p ${server.port}`,
       '',
       '# SSH-Schlüssel kopieren (für passwortlose Verbindung)',
@@ -324,13 +335,13 @@ export class RealSSHService {
       'curl -sL https://raw.githubusercontent.com/security-audit/scripts/main/collect.sh | bash'
     ];
 
-    logger.info('ssh', `📋 Terminal instructions for ${server.hostname}`, { 
+    logger.info('ssh', `📋 Terminal instructions for ${this.getServerDisplayName(server)}`, { 
       instructions: instructions.join('\\n')
     });
   }
 
   private async implementSSHAlternative(server: Server): Promise<boolean> {
-    logger.debug('ssh', `🔧 Implementing SSH alternatives for ${server.hostname}`);
+    logger.debug('ssh', `🔧 Implementing SSH alternatives for ${this.getServerDisplayName(server)}`);
 
     // Versuche verschiedene Alternativen
     const alternatives = [
@@ -344,21 +355,21 @@ export class RealSSHService {
       try {
         const result = await alternative();
         if (result) {
-          logger.info('ssh', `✅ SSH alternative successful for ${server.hostname}`);
+          logger.info('ssh', `✅ SSH alternative successful for ${this.getServerDisplayName(server)}`);
           return true;
         }
       } catch (error) {
-        logger.debug('ssh', `❌ SSH alternative failed for ${server.hostname}`);
+        logger.debug('ssh', `❌ SSH alternative failed for ${this.getServerDisplayName(server)}`);
         continue;
       }
     }
 
-    logger.warn('ssh', `⚠️  No SSH alternative available for ${server.hostname}`);
+    logger.warn('ssh', `⚠️  No SSH alternative available for ${this.getServerDisplayName(server)}`);
     return false;
   }
 
   private async tryWebSSH(server: Server): Promise<boolean> {
-    logger.trace('ssh', `🌐 Trying WebSSH for ${server.hostname}`);
+    logger.trace('ssh', `🌐 Trying WebSSH for ${this.getServerDisplayName(server)}`);
     
     try {
       // Versuche WebSSH auf verschiedenen Ports
@@ -371,19 +382,19 @@ export class RealSSHService {
         });
         
         if (response.ok) {
-          logger.info('ssh', `✅ WebSSH available on ${server.hostname}:${port}`);
+          logger.info('ssh', `✅ WebSSH available on ${this.getServerDisplayName(server)}:${port}`);
           return true;
         }
       }
     } catch (error) {
-      logger.trace('ssh', `❌ WebSSH not available for ${server.hostname}`);
+      logger.trace('ssh', `❌ WebSSH not available for ${this.getServerDisplayName(server)}`);
     }
     
     return false;
   }
 
   private async tryRESTAPI(server: Server): Promise<boolean> {
-    logger.trace('ssh', `🔗 Trying REST API for ${server.hostname}`);
+    logger.trace('ssh', `🔗 Trying REST API for ${this.getServerDisplayName(server)}`);
     
     try {
       const response = await fetch(`http://${server.ip}/api/system`, {
@@ -392,18 +403,18 @@ export class RealSSHService {
       });
       
       if (response.ok) {
-        logger.info('ssh', `✅ REST API available on ${server.hostname}`);
+        logger.info('ssh', `✅ REST API available on ${this.getServerDisplayName(server)}`);
         return true;
       }
     } catch (error) {
-      logger.trace('ssh', `❌ REST API not available for ${server.hostname}`);
+      logger.trace('ssh', `❌ REST API not available for ${this.getServerDisplayName(server)}`);
     }
     
     return false;
   }
 
   private async tryWebSocket(server: Server): Promise<boolean> {
-    logger.trace('ssh', `🔌 Trying WebSocket for ${server.hostname}`);
+    logger.trace('ssh', `🔌 Trying WebSocket for ${this.getServerDisplayName(server)}`);
     
     return new Promise((resolve) => {
       try {
@@ -416,7 +427,7 @@ export class RealSSHService {
         ws.onopen = () => {
           clearTimeout(timeout);
           ws.close();
-          logger.info('ssh', `✅ WebSocket available on ${server.hostname}`);
+          logger.info('ssh', `✅ WebSocket available on ${this.getServerDisplayName(server)}`);
           resolve(true);
         };
 
@@ -431,7 +442,7 @@ export class RealSSHService {
   }
 
   private async tryHTTPProxy(server: Server): Promise<boolean> {
-    logger.trace('ssh', `🔄 Trying HTTP proxy for ${server.hostname}`);
+    logger.trace('ssh', `🔄 Trying HTTP proxy for ${this.getServerDisplayName(server)}`);
     
     // Simuliere HTTP-Proxy für SSH-Befehle
     return false; // Für diese Demo nicht implementiert
@@ -440,7 +451,7 @@ export class RealSSHService {
   private async initializeDataCollection(connection: RealSSHConnection): Promise<void> {
     const { server } = connection;
     
-    logger.sshDataCollection(server.hostname, 'starting', {
+    logger.sshDataCollection(this.getServerDisplayName(server), 'starting', {
       methods: ['http_endpoints', 'websocket', 'simulated_commands']
     });
 
@@ -449,14 +460,14 @@ export class RealSSHService {
     
     connection.systemInfo = collectedData;
     
-    logger.sshDataCollection(server.hostname, 'completed', {
+    logger.sshDataCollection(this.getServerDisplayName(server), 'completed', {
       dataPoints: Object.keys(collectedData).length,
       success: true
     });
   }
 
   private async collectAvailableSystemData(server: Server): Promise<any> {
-    logger.debug('ssh', `📊 Collecting available system data for ${server.hostname}`);
+    logger.debug('ssh', `📊 Collecting available system data for ${this.getServerDisplayName(server)}`);
 
     const systemData = {
       server: {
@@ -477,7 +488,7 @@ export class RealSSHService {
       }
     };
 
-    logger.info('ssh', `📈 System data collected for ${server.hostname}`, {
+    logger.info('ssh', `📈 System data collected for ${this.getServerDisplayName(server)}`, {
       dataSize: JSON.stringify(systemData).length,
       categories: Object.keys(systemData)
     });
@@ -486,13 +497,13 @@ export class RealSSHService {
   }
 
   private async collectNetworkData(server: Server): Promise<any> {
-    logger.trace('ssh', `🌐 Collecting network data for ${server.hostname}`);
+    logger.trace('ssh', `🌐 Collecting network data for ${this.getServerDisplayName(server)}`);
     
     return {
       connectivity: await this.performAdvancedNetworkTest(server),
       responseTime: await this.measureResponseTime(server.ip),
       openPorts: await this.scanCommonPorts(server.ip),
-      dnsInfo: await this.getDNSInfo(server.hostname)
+      dnsInfo: await this.getDNSInfo(server.hostname || server.ip)
     };
   }
 
