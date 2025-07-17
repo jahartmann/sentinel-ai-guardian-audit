@@ -1,4 +1,5 @@
 import { Server } from '@/hooks/useServerManagement';
+import { logger } from '@/services/loggerService';
 
 export interface RealSSHConnection {
   id: string;
@@ -87,6 +88,7 @@ export class RealSSHService {
   private sshKeys: Map<string, { publicKey: string; privateKey: string }> = new Map();
 
   constructor() {
+    logger.info('ssh', 'SSH Service initialized for real connections');
     console.log('SSH Service initialized for real connections');
   }
 
@@ -102,6 +104,7 @@ export class RealSSHService {
     this.connections.set(connectionId, connection);
 
     try {
+      logger.sshConnect(`${server.hostname}:${server.port}`, { serverId: server.id, ip: server.ip });
       console.log(`Attempting real SSH connection to ${server.hostname}:${server.port}`);
       
       // **WICHTIG**: Browser können keine echten SSH-Verbindungen herstellen!
@@ -109,17 +112,22 @@ export class RealSSHService {
       const canReach = await this.performHonestConnectivityTest(server);
       
       if (!canReach) {
-        throw new Error(`Server ${server.hostname} (${server.ip}:${server.port}) ist nicht erreichbar. Netzwerkverbindung fehlgeschlagen.`);
+        const errorMsg = `Server ${server.hostname} (${server.ip}:${server.port}) ist nicht erreichbar. Netzwerkverbindung fehlgeschlagen.`;
+        logger.sshConnectFailed(`${server.hostname}:${server.port}`, new Error(errorMsg), { serverId: server.id });
+        throw new Error(errorMsg);
       }
       
       // Erkläre dem Benutzer die Situation
+      logger.warn('ssh', 'Browser-Limitation: Vollständige SSH-Funktionalität erfordert Server-Backend', { server: server.hostname });
       console.warn('HINWEIS: Vollständige SSH-Verbindungen erfordern ein Backend. Browser-Sicherheit verhindert direkte SSH-Verbindungen.');
       
+      logger.sshConnectSuccess(`${server.hostname}:${server.port}`, { serverId: server.id, note: 'Limited browser connectivity' });
       connection.status = 'connected';
       connection.error = 'Browser-Limitation: Vollständige SSH-Funktionalität erfordert Server-Backend';
       
       return connection;
     } catch (error) {
+      logger.sshConnectFailed(`${server.hostname}:${server.port}`, error as Error, { serverId: server.id });
       connection.status = 'error';
       connection.error = error instanceof Error ? error.message : 'Unknown error';
       throw error;

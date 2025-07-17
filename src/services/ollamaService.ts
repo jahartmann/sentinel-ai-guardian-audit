@@ -1,4 +1,5 @@
 import { useSettings } from '@/hooks/useSettings';
+import { logger } from '@/services/loggerService';
 
 interface OllamaRequest {
   model: string;
@@ -33,6 +34,7 @@ export class OllamaService {
         apiUrl = `http://${apiUrl}`;
       }
       
+      logger.ollamaConnect(apiUrl);
       console.log(`Testing Ollama connection to: ${apiUrl}`);
       
       // CORS-Problem lösen: Verwende einen Proxy oder fetch mit no-cors
@@ -47,13 +49,20 @@ export class OllamaService {
       });
       
       if (response.ok) {
+        logger.ollamaConnectSuccess(apiUrl);
         console.log('Ollama connection successful');
         return true;
       } else {
+        logger.ollamaConnectFailed(apiUrl, new Error(`${response.status} ${response.statusText}`));
         console.log(`Ollama connection failed: ${response.status} ${response.statusText}`);
         return false;
       }
     } catch (error) {
+      let currentApiUrl = this.baseUrl;
+      if (!currentApiUrl.startsWith('http://') && !currentApiUrl.startsWith('https://')) {
+        currentApiUrl = `http://${currentApiUrl}`;
+      }
+      logger.error('ollama', 'Ollama connection test failed', { url: currentApiUrl }, error as Error);
       console.error('Ollama connection test failed:', error);
       
       // Fallback: Teste ob Ollama überhaupt läuft (auch mit CORS-Fehler)

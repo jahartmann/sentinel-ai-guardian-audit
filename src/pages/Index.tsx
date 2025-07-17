@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
 import { EditServerDialog } from "@/components/EditServerDialog";
+import { LogViewerTrigger } from "@/components/LogViewer";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AIConnectionStatus } from "@/components/AIConnectionStatus";
 import { useServerManagement } from "@/hooks/useServerManagement";
@@ -167,6 +168,7 @@ const Index = () => {
               </Badge>
             </div>
             <div className="flex items-center space-x-4">
+              <LogViewerTrigger />
               <AIConnectionStatus />
               <SettingsDialog />
             </div>
