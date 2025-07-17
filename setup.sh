@@ -13,10 +13,12 @@ fi
 
 # Check Node.js version
 NODE_VERSION=$(node -v | cut -d'v' -f2)
-REQUIRED_VERSION="18.0.0"
+REQUIRED_VERSION="20.0.0"
 
-if ! npx semver -r ">=18.0.0" "$NODE_VERSION" &> /dev/null; then
-    echo "❌ Node.js version $NODE_VERSION is too old. Please upgrade to 18+ or higher."
+# Simple version comparison without semver dependency
+NODE_MAJOR=$(echo $NODE_VERSION | cut -d'.' -f1)
+if [ "$NODE_MAJOR" -lt 20 ]; then
+    echo "❌ Node.js version $NODE_VERSION is too old. Please upgrade to 20+ or higher."
     exit 1
 fi
 
@@ -57,9 +59,12 @@ echo "✅ Build completed successfully"
 cat > start.sh << 'EOF'
 #!/bin/bash
 echo "🚀 Starting SecureAI Appliance..."
-echo "📍 Application will be available at: http://localhost:3000"
+SERVER_IP=$(hostname -I | awk '{print $1}')
+echo "📍 Application will be available at:"
+echo "   - Local: http://localhost:8080"
+echo "   - Network: http://$SERVER_IP:8080"
 echo "🛑 Press Ctrl+C to stop"
-npm run start
+npm run dev
 EOF
 
 chmod +x start.sh
@@ -69,7 +74,7 @@ echo "🎉 Setup completed successfully!"
 echo ""
 echo "📋 Next steps:"
 echo "   1. Start the application: ./start.sh"
-echo "   2. Open http://localhost:3000 in your browser"
+echo "   2. Open http://localhost:8080 or http://[SERVER-IP]:8080 in your browser"
 echo "   3. Configure Ollama in Settings (if available)"
 echo "   4. Add your first server"
 echo ""

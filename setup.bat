@@ -4,7 +4,7 @@ echo Setting up SecureAI Appliance...
 REM Check if Node.js is installed
 where node >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo Node.js is not installed. Please install Node.js 18+ first.
+    echo Node.js is not installed. Please install Node.js 20+ first.
     echo Visit: https://nodejs.org
     pause
     exit /b 1
@@ -34,31 +34,24 @@ if %ERRORLEVEL% equ 0 (
     echo Install Ollama for AI-powered analysis: https://ollama.ai
 )
 
-REM Create production build
-echo Building application...
-call npm run build
-
-if %ERRORLEVEL% neq 0 (
-    echo Build failed
-    pause
-    exit /b 1
-)
-
-echo Build completed successfully
+echo.
+echo Setup completed successfully!
+echo.
 
 REM Create start script
 echo @echo off > start.bat
 echo echo Starting SecureAI Appliance... >> start.bat
-echo echo Application will be available at: http://localhost:3000 >> start.bat
+echo for /f "tokens=2 delims=:" %%%%a in ^('ipconfig ^| findstr /i "ipv4"'^) do set SERVER_IP=%%%%a >> start.bat
+echo set SERVER_IP=%%SERVER_IP: =%% >> start.bat
+echo echo Application will be available at: >> start.bat
+echo echo    - Local: http://localhost:8080 >> start.bat
+echo echo    - Network: http://%%SERVER_IP%%:8080 >> start.bat
 echo echo Press Ctrl+C to stop >> start.bat
-echo call npm run start >> start.bat
+echo call npm run dev >> start.bat
 
-echo.
-echo Setup completed successfully!
-echo.
 echo Next steps:
 echo    1. Start the application: start.bat
-echo    2. Open http://localhost:3000 in your browser
+echo    2. Open http://localhost:8080 or http://[SERVER-IP]:8080 in your browser
 echo    3. Configure Ollama in Settings (if available)
 echo    4. Add your first server
 echo.
