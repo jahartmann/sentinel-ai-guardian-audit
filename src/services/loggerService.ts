@@ -217,6 +217,21 @@ class LoggerService {
     this.addLog('error', category, message, details, error);
   }
 
+  // System-specific logging methods
+  logSystem(message: string, details?: any, error?: Error): void {
+    this.info('system', message, details);
+    if (error) {
+      this.error('system', `${message} - Error`, details, error);
+    }
+  }
+
+  logNetwork(message: string, details?: any, error?: Error): void {
+    this.info('network', message, details);
+    if (error) {
+      this.error('network', `${message} - Error`, details, error);
+    }
+  }
+
   // SSH-specific logging methods
   sshConnect(server: string, details?: any): void {
     this.info('ssh', `🔌 Initiating SSH connection to ${server}`, { 

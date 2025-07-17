@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
 import { EditServerDialog } from "@/components/EditServerDialog";
 import { LogViewerTrigger } from "@/components/LogViewer";
+import { SystemLogViewer } from "@/components/SystemLogViewer";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AIConnectionStatus } from "@/components/AIConnectionStatus";
 import { useServerManagement } from "@/hooks/useServerManagement";
@@ -178,7 +179,7 @@ const Index = () => {
 
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="dashboard" className="flex items-center space-x-2">
               <Activity className="w-4 h-4" />
               <span>Dashboard</span>
@@ -194,6 +195,10 @@ const Index = () => {
             <TabsTrigger value="network" className="flex items-center space-x-2">
               <Network className="w-4 h-4" />
               <span>Netzwerk</span>
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="flex items-center space-x-2">
+              <Eye className="w-4 h-4" />
+              <span>System Logs</span>
             </TabsTrigger>
           </TabsList>
 
@@ -566,6 +571,10 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-6">
+            <SystemLogViewer />
           </TabsContent>
         </Tabs>
       </div>
