@@ -35,10 +35,17 @@ export class NewOllamaService {
   private corsProxy?: string;
 
   constructor(baseUrl: string, model: string) {
+    // Normalisiere Base URL - entferne trailing slash
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     this.model = model;
     
-    logger.info('ollama', `🚀 Initializing new Ollama service`, {
+    // Stelle sicher, dass die URL ein Protokoll hat (inspiriert vom Python Code)
+    if (!this.baseUrl.startsWith('http://') && !this.baseUrl.startsWith('https://')) {
+      // Standardmäßig HTTP verwenden für lokale IPs (wie im Python Code)
+      this.baseUrl = `http://${this.baseUrl}`;
+    }
+    
+    logger.info('ollama', `🚀 Initializing Ollama service (Python-inspired)`, {
       baseUrl: this.baseUrl,
       model: this.model,
       timestamp: Date.now()
@@ -49,29 +56,35 @@ export class NewOllamaService {
     logger.ollamaConnect(this.baseUrl);
 
     try {
-      // Verschiedene Verbindungsmethoden versuchen
-      const methods = [
-        () => this.testDirectConnection(),
+      // Direkte Verbindung versuchen (wie im Python Code mit ollama.Client)
+      const result = await this.testDirectOllamaAPI();
+      if (result.success) {
+        logger.ollamaConnectSuccess(this.baseUrl, result.models);
+        return result;
+      }
+
+      // Fallback-Methoden wenn direkte Verbindung fehlschlägt
+      const fallbackMethods = [
         () => this.testWithCorsProxy(),
         () => this.testAlternativeEndpoints(),
         () => this.testWithDifferentProtocols()
       ];
 
-      for (const method of methods) {
+      for (const method of fallbackMethods) {
         try {
-          const result = await method();
-          if (result.success) {
-            logger.ollamaConnectSuccess(this.baseUrl, result.models);
-            return result;
+          const fallbackResult = await method();
+          if (fallbackResult.success) {
+            logger.ollamaConnectSuccess(this.baseUrl, fallbackResult.models || []);
+            return fallbackResult;
           }
         } catch (error) {
-        logger.debug('ollama', `Connection method failed`);
+          logger.debug('ollama', `Fallback method failed: ${error instanceof Error ? error.message : 'Unknown'}`);
           continue;
         }
       }
 
       // Alle Methoden fehlgeschlagen
-      const finalError = new Error('Alle Verbindungsmethoden zu Ollama fehlgeschlagen');
+      const finalError = new Error(`Ollama nicht erreichbar unter ${this.baseUrl}. Prüfe ob Ollama läuft und CORS konfiguriert ist.`);
       logger.ollamaConnectFailed(this.baseUrl, finalError);
       return { success: false, error: finalError.message };
 
@@ -84,16 +97,12 @@ export class NewOllamaService {
     }
   }
 
-  private async testDirectConnection(): Promise<{ success: boolean; models?: string[] }> {
-    logger.debug('ollama', `🔗 Testing direct connection to ${this.baseUrl}`);
-
-    let apiUrl = this.baseUrl;
-    if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-      apiUrl = `http://${apiUrl}`;
-    }
+  private async testDirectOllamaAPI(): Promise<{ success: boolean; models?: string[] }> {
+    logger.debug('ollama', `🔗 Testing direct Ollama API connection to ${this.baseUrl}`);
 
     try {
-      const response = await fetch(`${apiUrl}/api/tags`, {
+      // Teste /api/tags Endpoint (Standard Ollama API)
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +110,7 @@ export class NewOllamaService {
         },
         mode: 'cors',
         credentials: 'omit',
-        signal: AbortSignal.timeout(10000) // 10 Sekunden Timeout
+        signal: AbortSignal.timeout(15000) // 15 Sekunden für bessere Kompatibilität
       });
 
       if (!response.ok) {
@@ -111,19 +120,21 @@ export class NewOllamaService {
       const data: OllamaTagsResponse = await response.json();
       const models = data.models?.map(m => m.name) || [];
 
-      logger.info('ollama', `✅ Direct connection successful`, {
-        url: apiUrl,
+      logger.info('ollama', `✅ Direct Ollama API connection successful`, {
+        url: this.baseUrl,
         modelCount: models.length,
-        models: models.slice(0, 5) // Nur erste 5 für Logs
+        models: models.slice(0, 5),
+        endpoint: '/api/tags'
       });
 
       return { success: true, models };
 
     } catch (error) {
-      if (error instanceof Error && error.message.includes('Failed to fetch')) {
-        logger.ollamaCorsIssue(apiUrl);
+      if (error instanceof Error && (error.message.includes('Failed to fetch') || error.message.includes('CORS'))) {
+        logger.ollamaCorsIssue(this.baseUrl);
+        logger.warn('ollama', `CORS-Problem erkannt. Setze OLLAMA_ORIGINS="*" und starte Ollama neu.`);
       }
-      logger.debug('ollama', `❌ Direct connection failed to ${apiUrl}`);
+      logger.debug('ollama', `❌ Direct API connection failed: ${error instanceof Error ? error.message : 'Unknown'}`);
       throw error;
     }
   }
@@ -377,7 +388,7 @@ export class NewOllamaService {
 
     // Test alle Verbindungsmethoden
     try {
-      await this.testDirectConnection();
+      await this.testDirectOllamaAPI();
       diagnostics.tests.directConnection = true;
     } catch (error) {
       diagnostics.errors.push(`Direct connection: ${error instanceof Error ? error.message : 'Failed'}`);

@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
+import { performSecurityAnalysis } from '@/services/securityAnalysisService';
 
 export interface Server {
   id: string;
   name: string;
-  ip: string; // Primäre Verbindungsadresse
-  hostname?: string; // Optional, nur für Anzeige/Dokumentation
+  ip: string;          // Primäre IP-Adresse (erforderlich)
+  hostname?: string;   // Hostname optional für Dokumentation
   port: number;
   username: string;
   password?: string;
@@ -56,12 +57,21 @@ export const useServerManagement = () => {
   const [isScanning, setIsScanning] = useState<string | null>(null);
 
   const addServer = useCallback((serverData: Omit<Server, 'id' | 'status'>) => {
+    // Validierung: IP ist erforderlich
+    if (!serverData.ip || serverData.ip.trim() === '') {
+      throw new Error('IP-Adresse ist erforderlich');
+    }
+
     const newServer: Server = {
       ...serverData,
       id: `srv-${Date.now()}`,
-      status: 'offline'
+      status: 'offline',
+      ip: serverData.ip.trim(),
+      hostname: serverData.hostname?.trim() || undefined
     };
+    
     setServers(prev => [...prev, newServer]);
+    console.log(`✅ Server added: ${newServer.ip}${newServer.hostname ? ` (${newServer.hostname})` : ''}`);
     return newServer;
   }, []);
 
@@ -71,9 +81,22 @@ export const useServerManagement = () => {
   }, []);
 
   const updateServer = useCallback((serverId: string, updates: Partial<Server>) => {
+    // Validierung bei Updates
+    if (updates.ip !== undefined && (!updates.ip || updates.ip.trim() === '')) {
+      throw new Error('IP-Adresse darf nicht leer sein');
+    }
+
+    const cleanedUpdates = {
+      ...updates,
+      ip: updates.ip?.trim(),
+      hostname: updates.hostname?.trim() || undefined
+    };
+
     setServers(prev => prev.map(server => 
-      server.id === serverId ? { ...server, ...updates } : server
+      server.id === serverId ? { ...server, ...cleanedUpdates } : server
     ));
+    
+    console.log(`📝 Server updated: ${cleanedUpdates.ip || 'unknown'}`);
   }, []);
 
   const updateServerStatus = useCallback((serverId: string, status: Server['status']) => {
@@ -89,14 +112,14 @@ export const useServerManagement = () => {
       return false;
     }
 
-    const displayName = server.hostname || server.ip;
-    console.log(`Testing connection to ${displayName} (${server.ip}:${server.port})`);
+    const displayName = `${server.ip}${server.hostname ? ` (${server.hostname})` : ''}`;
+    console.log(`Testing connection to ${displayName}:${server.port}`);
     updateServerStatus(serverId, 'warning');
     
     try {
-      // Verwende den neuen SSH-Service
-      const { RealSSHService } = await import('@/services/newSSHService');
-      const sshService = new RealSSHService();
+      // Verwende den neuen IP-basierten SSH-Service
+      const { ipSSHService } = await import('@/services/ipBasedSSHService');
+      const sshService = ipSSHService;
       
       // Echter umfassender Verbindungstest
       const connection = await sshService.connect(server);
@@ -128,7 +151,7 @@ export const useServerManagement = () => {
       return null;
     }
 
-    const displayName = server.hostname || server.ip;
+    const displayName = `${server.ip}${server.hostname ? ` (${server.hostname})` : ''}`;
     console.log(`Starting comprehensive audit for ${displayName}`);
     setIsScanning(serverId);
     
@@ -154,9 +177,9 @@ export const useServerManagement = () => {
         throw new Error('Kein KI-Modell verfügbar. Bitte konfigurieren Sie Ollama oder ein anderes KI-Modell in den Einstellungen.');
       }
 
-      // 2. Stelle SSH-Verbindung her mit neuem Service
-      const { RealSSHService } = await import('@/services/newSSHService');
-      const sshService = new RealSSHService();
+      // 2. Stelle SSH-Verbindung her mit neuem IP-basierten Service
+      const { ipSSHService } = await import('@/services/ipBasedSSHService');
+      const sshService = ipSSHService;
       const connection = await sshService.connect(server);
       
       if (connection.status !== 'connected') {
@@ -170,8 +193,8 @@ export const useServerManagement = () => {
       
       console.log('Comprehensive system data collected, performing AI-powered security analysis...');
 
-      // 4. Führe KI-gestützte Sicherheitsanalyse durch
-      const securityAudit = await sshService.performSecurityAudit(connection.id);
+      // 4. Führe erweiterte Sicherheitsanalyse durch (basierend auf verfügbaren Daten)
+      const securityAudit = await performSecurityAnalysis(systemInfo, connection);
       
       console.log('Security audit completed, generating AI recommendations...');
 
@@ -294,7 +317,7 @@ export const useServerManagement = () => {
         .map(host => ({
           name: host.hostname || `Server-${host.ip.split('.').pop()}`,
           ip: host.ip,
-          hostname: host.hostname, // Optional hostname
+          hostname: host.hostname || undefined, // Hostname optional
           port: 22,
           username: '',
           connectionType: 'ssh' as const
