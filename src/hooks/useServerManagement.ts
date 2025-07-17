@@ -80,16 +80,25 @@ export const useServerManagement = () => {
     const server = servers.find(s => s.id === serverId);
     if (!server) return false;
 
-    // Simulate connection test
     updateServerStatus(serverId, 'warning');
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const success = Math.random() > 0.3; // 70% success rate
-        updateServerStatus(serverId, success ? 'online' : 'critical');
-        resolve(success);
-      }, 2000);
-    });
+    try {
+      const sshService = new (await import('@/services/sshService')).SSHService();
+      const connection = await sshService.connect(server);
+      
+      if (connection.status === 'connected') {
+        updateServerStatus(serverId, 'online');
+        await sshService.disconnect(connection.id);
+        return true;
+      } else {
+        updateServerStatus(serverId, 'critical');
+        return false;
+      }
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      updateServerStatus(serverId, 'critical');
+      return false;
+    }
   }, [servers, updateServerStatus]);
 
   const startAudit = useCallback(async (serverId: string) => {
@@ -113,66 +122,104 @@ export const useServerManagement = () => {
 
     setAuditResults(prev => [...prev, newAudit]);
 
-    // Simulate audit process
-    return new Promise<AuditResult>((resolve) => {
-      setTimeout(() => {
-        const completedAudit: AuditResult = {
-          ...newAudit,
-          status: 'completed',
-          overallScore: Math.floor(Math.random() * 40) + 60, // 60-100
-          securityScore: Math.floor(Math.random() * 40) + 50, // 50-90
-          performanceScore: Math.floor(Math.random() * 30) + 70, // 70-100
-          complianceScore: Math.floor(Math.random() * 35) + 65, // 65-100
-          findings: [
-            {
-              id: 'finding-1',
-              title: 'SSH Root Login Enabled',
-              severity: 'critical',
-              category: 'Security',
-              description: 'SSH root login is enabled, which poses a significant security risk.',
-              recommendation: 'Disable SSH root login and use sudo for administrative tasks.'
-            },
-            {
-              id: 'finding-2',
-              title: 'Outdated Package Versions',
-              severity: 'high',
-              category: 'Security',
-              description: 'Several system packages are outdated and may contain vulnerabilities.',
-              recommendation: 'Update all packages to their latest versions.'
-            }
-          ]
-        };
+    try {
+      const sshService = new (await import('@/services/sshService')).SSHService();
+      const connection = await sshService.connect(server);
+      
+      if (connection.status !== 'connected') {
+        throw new Error(connection.error || 'Failed to connect to server');
+      }
 
-        setAuditResults(prev => prev.map(audit => 
-          audit.id === auditId ? completedAudit : audit
-        ));
-        setIsScanning(null);
-        
-        // Update server's last scan time and security score
-        setServers(prev => prev.map(server => 
-          server.id === serverId 
-            ? { 
-                ...server, 
-                lastScan: completedAudit.timestamp,
-                securityScore: completedAudit.securityScore
-              } 
-            : server
-        ));
+      // Perform real security audit
+      const securityAudit = await sshService.performSecurityAudit(connection.id);
+      
+      const completedAudit: AuditResult = {
+        ...newAudit,
+        status: 'completed',
+        overallScore: securityAudit.scores.overall,
+        securityScore: securityAudit.scores.security,
+        performanceScore: securityAudit.scores.performance,
+        complianceScore: securityAudit.scores.compliance,
+        findings: securityAudit.findings
+      };
 
-        resolve(completedAudit);
-      }, 5000); // 5 second simulation
-    });
+      setAuditResults(prev => prev.map(audit => 
+        audit.id === auditId ? completedAudit : audit
+      ));
+      
+      // Update server's last scan time and security score
+      setServers(prev => prev.map(s => 
+        s.id === serverId 
+          ? { 
+              ...s, 
+              lastScan: completedAudit.timestamp,
+              securityScore: completedAudit.securityScore
+            } 
+          : s
+      ));
+
+      await sshService.disconnect(connection.id);
+      setIsScanning(null);
+      
+      return completedAudit;
+    } catch (error) {
+      console.error('Audit failed:', error);
+      
+      const failedAudit: AuditResult = {
+        ...newAudit,
+        status: 'failed',
+        findings: [{
+          id: 'connection-error',
+          title: 'Verbindungsfehler',
+          severity: 'critical',
+          category: 'Connection',
+          description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+          recommendation: 'Überprüfen Sie die Verbindungseinstellungen und Zugangsdaten.'
+        }]
+      };
+
+      setAuditResults(prev => prev.map(audit => 
+        audit.id === auditId ? failedAudit : audit
+      ));
+      setIsScanning(null);
+      
+      throw error;
+    }
   }, [servers, isScanning]);
 
   const startNetworkScan = useCallback(async () => {
-    // Simulate network scanning
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        console.log('Network scan completed');
-        resolve();
-      }, 3000);
-    });
-  }, []);
+    try {
+      const networkService = new (await import('@/services/networkService')).NetworkService();
+      const result = await networkService.scanNetwork();
+      
+      console.log(`Network scan completed: ${result.hosts.length} hosts found in ${result.scanTime}ms`);
+      
+      // Auto-discover servers and add them
+      const newServers = result.hosts
+        .filter(host => host.services.some(s => s.service === 'SSH'))
+        .map(host => ({
+          name: host.hostname || `Server-${host.ip.split('.').pop()}`,
+          hostname: host.hostname || host.ip,
+          ip: host.ip,
+          port: 22,
+          username: '',
+          connectionType: 'ssh' as const
+        }));
+
+      // Add discovered servers if they don't exist
+      newServers.forEach(serverData => {
+        const exists = servers.some(s => s.ip === serverData.ip);
+        if (!exists) {
+          addServer(serverData);
+        }
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Network scan failed:', error);
+      throw error;
+    }
+  }, [servers, addServer]);
 
   return {
     servers,

@@ -49,15 +49,15 @@ const Index = () => {
   const handleNetworkScan = async () => {
     setIsNetworkScanning(true);
     try {
-      await startNetworkScan();
+      const result = await startNetworkScan();
       toast({
         title: "Netzwerk-Scan abgeschlossen",
-        description: "Keine ungewöhnlichen Aktivitäten erkannt."
+        description: `${result.hosts.length} Hosts gefunden in ${result.scanTime}ms. ${result.hosts.filter(h => h.services.some(s => s.service === 'SSH')).length} SSH-Server entdeckt.`
       });
     } catch (error) {
       toast({
         title: "Scan-Fehler",
-        description: "Netzwerk-Scan konnte nicht abgeschlossen werden.",
+        description: error instanceof Error ? error.message : "Netzwerk-Scan konnte nicht abgeschlossen werden.",
         variant: "destructive"
       });
     } finally {
@@ -92,11 +92,39 @@ const Index = () => {
     });
   };
 
-  const mockNetworkEvents = [
-    { timestamp: "2024-01-15 14:30:25", event: "Unusual port scan detected", source: "192.168.1.100", severity: "medium" },
-    { timestamp: "2024-01-15 14:28:12", event: "Failed login attempts", source: "192.168.1.200", severity: "high" },
-    { timestamp: "2024-01-15 14:25:45", event: "Suspicious DNS queries", source: "192.168.1.150", severity: "medium" },
-  ];
+  const [networkEvents, setNetworkEvents] = useState([
+    { timestamp: "2024-01-15 14:30:25", event: "Unusual port scan detected", source: "192.168.1.100", severity: "medium", type: "Port Scan" },
+    { timestamp: "2024-01-15 14:28:12", event: "Failed login attempts", source: "192.168.1.200", severity: "high", type: "Authentication" },
+    { timestamp: "2024-01-15 14:25:45", event: "Suspicious DNS queries", source: "192.168.1.150", severity: "medium", type: "DNS Anomaly" },
+  ]);
+
+  const startNetworkMonitoring = async () => {
+    try {
+      const networkService = new (await import('@/services/networkService')).NetworkService();
+      const traffic = await networkService.monitorTraffic();
+      const anomalies = await networkService.detectAnomalies(traffic);
+      
+      const newEvents = anomalies.map(anomaly => ({
+        timestamp: new Date(anomaly.timestamp).toLocaleString('de-DE'),
+        event: anomaly.description,
+        source: 'System Analysis',
+        severity: anomaly.severity,
+        type: anomaly.type
+      }));
+      
+      setNetworkEvents(prev => [...newEvents, ...prev.slice(0, 10)]);
+      
+      if (anomalies.length > 0) {
+        toast({
+          title: "Netzwerk-Anomalien erkannt",
+          description: `${anomalies.length} verdächtige Aktivitäten gefunden.`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Network monitoring failed:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -482,12 +510,22 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockNetworkEvents.map((event, index) => (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Letztes Update: {new Date().toLocaleString('de-DE')}</span>
+                    <Button size="sm" variant="outline" onClick={startNetworkMonitoring}>
+                      <Activity className="w-4 h-4 mr-1" />
+                      Aktualisieren
+                    </Button>
+                  </div>
+                  {networkEvents.map((event, index) => (
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <Badge className={getSeverityColor(event.severity)}>
                             {event.severity}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {event.type}
                           </Badge>
                           <span className="font-medium">{event.event}</span>
                         </div>
@@ -496,7 +534,8 @@ const Index = () => {
                         </div>
                       </div>
                       <Button size="sm" variant="outline">
-                        Untersuchen
+                        <Eye className="w-4 h-4 mr-1" />
+                        Details
                       </Button>
                     </div>
                   ))}
