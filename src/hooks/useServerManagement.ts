@@ -93,17 +93,18 @@ export const useServerManagement = () => {
     updateServerStatus(serverId, 'warning');
     
     try {
-      const { RealSSHService } = await import('@/services/realSSHService');
+      // Verwende den neuen SSH-Service
+      const { RealSSHService } = await import('@/services/newSSHService');
       const sshService = new RealSSHService();
       
-      // Ehrlicher Verbindungstest - zeigt was wirklich möglich ist
+      // Echter umfassender Verbindungstest
       const connection = await sshService.connect(server);
       
       if (connection.status === 'connected') {
-        console.log(`Basic connectivity successful to ${server.hostname}`);
+        console.log(`Advanced connectivity successful to ${server.hostname}`);
         updateServerStatus(serverId, 'online');
         
-        // Disconnect
+        // Disconnect nach Test
         await sshService.disconnect(connection.id);
         return true;
       } else {
@@ -151,8 +152,8 @@ export const useServerManagement = () => {
         throw new Error('Kein KI-Modell verfügbar. Bitte konfigurieren Sie Ollama oder ein anderes KI-Modell in den Einstellungen.');
       }
 
-      // 2. Stelle SSH-Verbindung her
-      const { RealSSHService } = await import('@/services/realSSHService');
+      // 2. Stelle SSH-Verbindung her mit neuem Service
+      const { RealSSHService } = await import('@/services/newSSHService');
       const sshService = new RealSSHService();
       const connection = await sshService.connect(server);
       
@@ -162,10 +163,10 @@ export const useServerManagement = () => {
 
       console.log('SSH connection established, gathering system data...');
 
-      // 3. Sammle umfassende Systemdaten
-      const systemInfo = await sshService.gatherSystemInfo(connection.id);
+      // 3. Verwende die bereits gesammelten Systemdaten
+      const systemInfo = connection.systemInfo;
       
-      console.log('System data collected, performing AI-powered security analysis...');
+      console.log('Comprehensive system data collected, performing AI-powered security analysis...');
 
       // 4. Führe KI-gestützte Sicherheitsanalyse durch
       const securityAudit = await sshService.performSecurityAudit(connection.id);
@@ -239,17 +240,17 @@ export const useServerManagement = () => {
 
   const checkAIAvailability = async () => {
     try {
-      // Prüfe Ollama
-      const { createOllamaService } = await import('@/services/ollamaService');
-      const { useSettings } = await import('@/hooks/useSettings');
+      // Prüfe neue Ollama-Implementation
+      const { createNewOllamaService } = await import('@/services/newOllamaService');
       
-      // Da wir nicht in einem React-Kontext sind, müssen wir anders auf Settings zugreifen
+      // Settings aus localStorage laden
       const savedSettings = localStorage.getItem('settings');
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
         if (settings.ollama?.enabled && settings.ollama?.serverUrl) {
-          const ollamaService = createOllamaService(settings);
-          if (ollamaService && await ollamaService.testConnection()) {
+          const ollamaService = createNewOllamaService(settings.ollama.serverUrl, settings.ollama.model || 'llama2');
+          const result = await ollamaService.testConnection();
+          if (result.success) {
             return ollamaService;
           }
         }

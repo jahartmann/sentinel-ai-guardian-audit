@@ -248,7 +248,7 @@ export const LogViewer = () => {
                 filteredLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors dark:border-gray-700 dark:hover:bg-gray-800"
                     onClick={() => setSelectedLog(log)}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -266,7 +266,7 @@ export const LogViewer = () => {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{log.message}</p>
                           {log.details && (
-                            <p className="text-xs text-gray-500 truncate">
+                            <p className="text-xs text-muted-foreground truncate">
                               {typeof log.details === 'object' 
                                 ? JSON.stringify(log.details) 
                                 : String(log.details)
@@ -275,7 +275,7 @@ export const LogViewer = () => {
                           )}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 shrink-0">
+                      <div className="text-xs text-muted-foreground shrink-0">
                         {formatTimestamp(log.timestamp)}
                       </div>
                     </div>
@@ -310,12 +310,12 @@ export const LogViewer = () => {
                 <TabsContent value="details" className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Message</h4>
-                    <p className="text-sm bg-gray-50 p-3 rounded">{selectedLog.message}</p>
+                    <p className="text-sm bg-muted p-3 rounded border">{selectedLog.message}</p>
                   </div>
                   {selectedLog.details && (
                     <div>
                       <h4 className="font-semibold mb-2">Details</h4>
-                      <pre className="text-sm bg-gray-50 p-3 rounded overflow-auto">
+                      <pre className="text-sm bg-muted p-3 rounded overflow-auto border">
                         {JSON.stringify(selectedLog.details, null, 2)}
                       </pre>
                     </div>
@@ -324,11 +324,11 @@ export const LogViewer = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Error</h4>
                       <div className="space-y-2">
-                        <p className="text-sm bg-red-50 p-3 rounded text-red-800">
+                        <p className="text-sm bg-destructive/10 border border-destructive/20 p-3 rounded text-destructive-foreground">
                           {selectedLog.error.message}
                         </p>
                         {selectedLog.stack && (
-                          <pre className="text-xs bg-gray-50 p-3 rounded overflow-auto">
+                          <pre className="text-xs bg-muted p-3 rounded overflow-auto border max-h-40">
                             {selectedLog.stack}
                           </pre>
                         )}
@@ -339,9 +339,9 @@ export const LogViewer = () => {
                 <TabsContent value="context" className="space-y-4">
                   {selectedLog.context && (
                     <div>
-                      <h4 className="font-semibold mb-2">Context Information</h4>
-                      <pre className="text-sm bg-gray-50 p-3 rounded overflow-auto">
-                        {JSON.stringify(selectedLog.context, null, 2)}
+                    <h4 className="font-semibold mb-2">Context Information</h4>
+                    <pre className="text-sm bg-muted p-3 rounded overflow-auto border">
+                      {JSON.stringify(selectedLog.context, null, 2)}
                       </pre>
                     </div>
                   )}
@@ -357,7 +357,7 @@ export const LogViewer = () => {
                 <TabsContent value="raw" className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Raw Log Entry</h4>
-                    <pre className="text-xs bg-gray-50 p-3 rounded overflow-auto">
+                    <pre className="text-xs bg-muted p-3 rounded overflow-auto border">
                       {JSON.stringify(selectedLog, null, 2)}
                     </pre>
                   </div>

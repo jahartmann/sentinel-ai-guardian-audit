@@ -219,39 +219,103 @@ class LoggerService {
 
   // SSH-specific logging methods
   sshConnect(server: string, details?: any): void {
-    this.info('ssh', `Initiating SSH connection to ${server}`, details);
+    this.info('ssh', `🔌 Initiating SSH connection to ${server}`, { 
+      ...details, 
+      protocol: 'SSH',
+      timestamp: Date.now()
+    });
   }
 
   sshConnectSuccess(server: string, details?: any): void {
-    this.info('ssh', `SSH connection successful to ${server}`, details);
+    this.info('ssh', `✅ SSH connection established to ${server}`, { 
+      ...details, 
+      success: true,
+      timestamp: Date.now()
+    });
   }
 
   sshConnectFailed(server: string, error: Error, details?: any): void {
-    this.error('ssh', `SSH connection failed to ${server}`, details, error);
+    this.error('ssh', `❌ SSH connection failed to ${server}`, { 
+      ...details, 
+      errorName: error.name,
+      errorMessage: error.message,
+      timestamp: Date.now()
+    }, error);
   }
 
   sshCommand(server: string, command: string, details?: any): void {
-    this.debug('ssh', `Executing SSH command on ${server}: ${command}`, details);
+    this.debug('ssh', `💻 Executing SSH command on ${server}: ${command}`, { 
+      ...details, 
+      command,
+      timestamp: Date.now()
+    });
+  }
+
+  sshKeyExchange(server: string, details?: any): void {
+    this.info('ssh', `🔑 SSH key exchange with ${server}`, { 
+      ...details, 
+      phase: 'key_exchange',
+      timestamp: Date.now()
+    });
+  }
+
+  sshFingerprint(server: string, fingerprint: string, accepted: boolean): void {
+    this.info('ssh', `🔐 SSH fingerprint ${accepted ? 'accepted' : 'rejected'} for ${server}`, { 
+      fingerprint, 
+      accepted,
+      timestamp: Date.now()
+    });
+  }
+
+  sshDataCollection(server: string, phase: string, details?: any): void {
+    this.debug('ssh', `📊 Data collection ${phase} on ${server}`, { 
+      ...details, 
+      phase,
+      timestamp: Date.now()
+    });
   }
 
   // Ollama-specific logging methods
   ollamaConnect(url: string): void {
-    this.info('ollama', `Testing Ollama connection to ${url}`);
+    this.info('ollama', `🤖 Testing Ollama connection to ${url}`, { 
+      url, 
+      timestamp: Date.now(),
+      action: 'connection_test'
+    });
   }
 
   ollamaConnectSuccess(url: string, models?: string[]): void {
-    this.info('ollama', `Ollama connection successful to ${url}`, { models });
+    this.info('ollama', `✅ Ollama connection successful to ${url}`, { 
+      url, 
+      models, 
+      modelCount: models?.length || 0,
+      timestamp: Date.now()
+    });
   }
 
   ollamaConnectFailed(url: string, error: Error): void {
-    this.error('ollama', `Ollama connection failed to ${url}`, { url }, error);
+    this.error('ollama', `❌ Ollama connection failed to ${url}`, { 
+      url, 
+      errorType: error.name,
+      timestamp: Date.now()
+    }, error);
   }
 
   ollamaGenerate(model: string, prompt: string): void {
-    this.debug('ollama', `Generating response with model ${model}`, { 
+    this.debug('ollama', `🧠 Generating response with model ${model}`, { 
       model, 
       promptLength: prompt.length,
-      promptPreview: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : '')
+      promptPreview: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''),
+      timestamp: Date.now()
+    });
+  }
+
+  ollamaCorsIssue(url: string): void {
+    this.warn('ollama', `🚫 CORS issue detected with Ollama at ${url}`, { 
+      url, 
+      issue: 'cors_blocked',
+      solution: 'Set OLLAMA_ORIGINS environment variable',
+      timestamp: Date.now()
     });
   }
 
