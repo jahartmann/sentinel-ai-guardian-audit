@@ -41,15 +41,19 @@ export class IPBasedSSHService {
 
     this.connections.set(connectionId, connection);
     
-    // IP-First Logging (hostname ist optional)
+    // IP-First Logging (hostname ist optional, wie im Python Code)
     const target = server.ip + (server.port !== 22 ? `:${server.port}` : '');
+    const hostIdentifier = server.hostname ? `${server.username}@${server.hostname}` : `${server.username}@${server.ip}`;
+    
     logger.sshConnect(target, { 
       serverId: server.id, 
       primaryIP: server.ip,
       port: server.port,
       hostname: server.hostname || 'N/A',
       connectionId,
-      method: 'ip_based'
+      method: 'ip_based',
+      pythonStyle: true,
+      hostIdentifier
     });
 
     try {

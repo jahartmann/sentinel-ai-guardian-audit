@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
 import { EditServerDialog } from "@/components/EditServerDialog";
+import { ConsoleDialog } from "@/components/ConsoleDialog";
 import { LogViewerTrigger } from "@/components/LogViewer";
 import { SystemLogViewer } from "@/components/SystemLogViewer";
 import { SettingsDialog } from "@/components/SettingsDialog";
@@ -32,7 +33,8 @@ import {
   Trash2,
   Play,
   Loader2,
-  Edit
+  Edit,
+  Terminal
 } from "lucide-react";
 
 const Index = () => {
@@ -415,6 +417,15 @@ const Index = () => {
                             Bericht
                           </Link>
                         </Button>
+                        <ConsoleDialog
+                          server={server}
+                          trigger={
+                            <Button size="sm" variant="outline" disabled={server.status === 'offline'}>
+                              <Terminal className="w-4 h-4 mr-1" />
+                              Console
+                            </Button>
+                          }
+                        />
                         <EditServerDialog
                           server={server}
                           onUpdateServer={updateServer}

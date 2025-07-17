@@ -33,10 +33,11 @@ export const EditServerDialog = ({ server, onUpdateServer, onTestConnection, tri
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.hostname || !formData.ip || !formData.username) {
+    // Hostname ist jetzt optional - nur Name, IP und Username sind Pflicht
+    if (!formData.name || !formData.ip || !formData.username) {
       toast({
         title: 'Fehler',
-        description: 'Bitte füllen Sie alle Pflichtfelder aus.',
+        description: 'Bitte füllen Sie alle Pflichtfelder aus (Name, IP, Benutzername).',
         variant: 'destructive'
       });
       return;
@@ -107,12 +108,12 @@ export const EditServerDialog = ({ server, onUpdateServer, onTestConnection, tri
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="hostname">Hostname *</Label>
+              <Label htmlFor="hostname">Hostname (optional)</Label>
               <Input
                 id="hostname"
                 value={formData.hostname}
                 onChange={(e) => setFormData(prev => ({ ...prev, hostname: e.target.value }))}
-                placeholder="z.B. server.company.com"
+                placeholder="z.B. server.company.com (optional)"
               />
             </div>
           </div>

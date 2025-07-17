@@ -119,7 +119,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
                 id="hostname"
                 value={formData.hostname}
                 onChange={(e) => setFormData(prev => ({ ...prev, hostname: e.target.value }))}
-                placeholder="z.B. server.company.com"
+                placeholder="z.B. server.company.com (optional)"
               />
             </div>
           </div>
