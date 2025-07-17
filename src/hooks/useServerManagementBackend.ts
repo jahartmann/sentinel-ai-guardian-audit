@@ -55,9 +55,15 @@ export const useServerManagementBackend = () => {
     }
   };
 
-  const addServer = async (serverData: Omit<ServerWithKeyStatus, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
+  const addServer = async (serverData: Omit<Server, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const response = await backendApi.addServer(serverData);
+      // Convert to backend format with default hostname if not provided
+      const backendServerData = {
+        ...serverData,
+        hostname: serverData.hostname || serverData.ip // Use IP as hostname if not provided
+      };
+      
+      const response = await backendApi.addServer(backendServerData);
       if (response.success && response.data) {
         setServers(prev => [...prev, { ...response.data, keyDeployed: false }]);
         logger.info('system', `✅ Server added: ${response.data.name}`);
