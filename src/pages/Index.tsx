@@ -13,7 +13,7 @@ import { LogViewerTrigger } from "@/components/LogViewer";
 import { SystemLogViewer } from "@/components/SystemLogViewer";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AIConnectionStatus } from "@/components/AIConnectionStatus";
-import { useServerManagement } from "@/hooks/useServerManagement";
+import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
 import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -34,7 +34,8 @@ import {
   Play,
   Loader2,
   Edit,
-  Terminal
+  Terminal,
+  Database
 } from "lucide-react";
 
 const Index = () => {
@@ -46,12 +47,11 @@ const Index = () => {
     auditResults, 
     isScanning,
     addServer,
-    updateServer,
     removeServer, 
     testConnection, 
     startAudit, 
     startNetworkScan 
-  } = useServerManagement();
+  } = useServerManagementBackend();
   const { toast } = useToast();
 
   const handleNetworkScan = async () => {
@@ -359,164 +359,78 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="servers" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Server-Verbindungen</h2>
-        <AddServerDialog onAddServer={addServer} onTestConnection={testConnection} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {servers.map((server) => (
-                <Card key={server.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      {server.name}
-                      <Badge className={getStatusColor(server.status)}>
-                        {server.status}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>{server.hostname} • {server.ip}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Sicherheitsscore</span>
-                        <span className="font-medium">{server.securityScore || 0}%</span>
-                      </div>
-                      <Progress value={server.securityScore || 0} />
-                      <div className="flex space-x-2 flex-wrap gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleTestConnection(server.id)}
-                          disabled={isScanning === server.id}
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          Test
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleStartAudit(server.id)}
-                          disabled={isScanning === server.id || server.status === 'offline'}
-                        >
-                          {isScanning === server.id ? (
-                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                          ) : (
-                            <Eye className="w-4 h-4 mr-1" />
-                          )}
-                          Audit
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          asChild
-                          disabled={server.status === 'offline'}
-                        >
-                          <Link to={`/server/${server.id}/audit`}>
-                            <FileText className="w-4 h-4 mr-1" />
-                            Bericht
-                          </Link>
-                        </Button>
-                        <ConsoleDialog
-                          server={server}
-                          trigger={
-                            <Button size="sm" variant="outline" disabled={server.status === 'offline'}>
-                              <Terminal className="w-4 h-4 mr-1" />
-                              Console
-                            </Button>
-                          }
-                        />
-                        <EditServerDialog
-                          server={server}
-                          onUpdateServer={updateServer}
-                          onTestConnection={testConnection}
-                          trigger={
-                            <Button size="sm" variant="outline">
-                              <Edit className="w-4 h-4 mr-1" />
-                              Bearbeiten
-                            </Button>
-                          }
-                        />
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => removeServer(server.id)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Löschen
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {servers.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <Server className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Keine Server konfiguriert</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Fügen Sie Ihren ersten Server hinzu, um mit der Sicherheitsanalyse zu beginnen.
-                  </p>
-                  <AddServerDialog onAddServer={addServer} onTestConnection={testConnection} />
-                </div>
-              )}
+            {/* Import the new ServerManagement component */}
+            <div className="space-y-6">
+              <ServerManagement />
             </div>
           </TabsContent>
 
           <TabsContent value="audit" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">KI-Audit Berichte</h2>
-              <Button asChild>
-                <Link to="/reports">
-                  <Brain className="w-4 h-4 mr-2" />
-                  Alle Berichte anzeigen
-                </Link>
-              </Button>
+              <h2 className="text-2xl font-bold">Sicherheits-Audits</h2>
+              <Badge variant="outline">
+                <Database className="w-4 h-4 mr-1" />
+                Backend-Integration
+              </Badge>
             </div>
 
-            <div className="space-y-4">
-              {auditResults.slice(0, 5).map((result) => (
-                <Card key={result.id}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="flex items-center space-x-2">
-                        <FileText className="w-5 h-5" />
-                        <span>Audit: {servers.find(s => s.id === result.serverId)?.name}</span>
-                      </span>
-                      <Badge className={result.status === 'completed' ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}>
-                        {result.status === 'completed' ? 'Abgeschlossen' : 'Läuft'}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Sicherheitsscore: {result.securityScore}/100 • {new Date(result.timestamp).toLocaleDateString('de-DE')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex space-x-2">
-                      <Button size="sm" asChild>
-                        <Link to={`/server/${result.serverId}/audit`}>
-                          Details anzeigen
-                        </Link>
-                      </Button>
-                      <Button size="sm" variant="outline" disabled={result.status !== 'completed'}>
-                        PDF Export
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {auditResults.length === 0 && (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Brain className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Keine Audit-Berichte verfügbar</h3>
+            {/* Ollama Integration */}
+            <OllamaConnection />
+
+            {/* Audit Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Audit-Berichte</CardTitle>
+                <CardDescription>
+                  Alle durchgeführten Sicherheitsanalysen im Überblick
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auditResults.length > 0 ? (
+                  <div className="space-y-4">
+                    {auditResults.map((result) => (
+                      <div key={result.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium">{result.serverName}</h4>
+                          <Badge variant={result.status === 'completed' ? "default" : "outline"}>
+                            {result.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Gesamt:</span>
+                            <span className="ml-2 font-medium">{result.scores.overall}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Sicherheit:</span>
+                            <span className="ml-2 font-medium">{result.scores.security}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Performance:</span>
+                            <span className="ml-2 font-medium">{result.scores.performance}%</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Compliance:</span>
+                            <span className="ml-2 font-medium">{result.scores.compliance}%</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {new Date(result.timestamp).toLocaleString('de-DE')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Keine Audits verfügbar</h3>
                     <p className="text-muted-foreground">
-                      Starten Sie ein Audit für einen Ihrer Server, um Sicherheitsanalysen zu sehen.
+                      Führen Sie Ihr erstes Sicherheitsaudit durch, um Berichte zu generieren.
                     </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="network" className="space-y-6">
@@ -594,3 +508,7 @@ const Index = () => {
 };
 
 export default Index;
+
+// Import additional components
+import { ServerManagement } from "@/components/ServerManagement";
+import { OllamaConnection } from "@/components/OllamaConnection";

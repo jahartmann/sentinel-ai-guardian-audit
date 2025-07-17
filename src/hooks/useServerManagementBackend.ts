@@ -1,275 +1,286 @@
 import { useState, useEffect } from 'react';
-import { backendService } from '@/services/backendService';
+import { backendApi, Server, AuditResult } from '@/services/backendApiService';
+import { socketService } from '@/services/socketService';
 import { logger } from '@/services/loggerService';
-import { useToast } from '@/hooks/use-toast';
 
-export interface Server {
-  id: string;
-  name: string;
-  hostname: string;
-  ip: string;
-  port: number;
-  username: string;
-  password?: string;
-  privateKeyPath?: string;
-  connectionType: 'password' | 'key';
-  status: 'online' | 'offline' | 'warning' | 'critical';
-  securityScore?: number;
-  lastAudit?: string;
-  createdAt: string;
+export interface ServerWithKeyStatus extends Server {
+  keyDeployed?: boolean;
+  fingerprint?: string;
 }
 
-export interface AuditResult {
-  id: string;
-  serverId: string;
-  timestamp: string;
-  status: 'running' | 'completed' | 'failed';
-  scores: {
-    overall: number;
-    security: number;
-    performance: number;
-    compliance: number;
-  };
-  findings: Array<{
-    id: string;
-    title: string;
-    severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-    category: string;
-    description: string;
-    recommendation: string;
-  }>;
-  systemData?: any;
-  analysis?: string;
-}
-
-export interface NetworkScanResult {
-  hosts: Array<{
-    ip: string;
-    hostname?: string;
-    services: Array<{
-      port: number;
-      service: string;
-      version?: string;
-    }>;
-  }>;
-  scanTime: number;
-}
-
-export const useServerManagement = () => {
-  const [servers, setServers] = useState<Server[]>([]);
+export const useServerManagementBackend = () => {
+  const [servers, setServers] = useState<ServerWithKeyStatus[]>([]);
   const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
   const [isScanning, setIsScanning] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [publicKey, setPublicKey] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Backend-Integration: Lade Server beim Start
+  // Load initial data
   useEffect(() => {
-    loadServersFromBackend();
+    loadServers();
+    generateSSHKey();
   }, []);
 
-  const loadServersFromBackend = async () => {
+  // Generate SSH key on backend
+  const generateSSHKey = async () => {
     try {
-      const response = await backendService.getServers();
+      const response = await backendApi.request<{ publicKey: string }>('/api/ssh/generate-key', {
+        method: 'POST'
+      });
+      
       if (response.success && response.data) {
-        setServers(response.data as Server[]);
-        logger.info('system', `Loaded ${(response.data as Server[]).length} servers from backend`);
+        setPublicKey(response.data.publicKey);
+        logger.info('ssh', '🔑 SSH public key generated');
       }
     } catch (error) {
-      logger.error('system', 'Failed to load servers from backend', { error });
+      logger.error('ssh', 'Failed to generate SSH key', { error });
     }
   };
 
-  const addServer = async (serverData: Omit<Server, 'id' | 'status' | 'createdAt'>) => {
+  const loadServers = async () => {
+    setLoading(true);
     try {
-      const response = await backendService.addServer(serverData);
+      const response = await backendApi.getServers();
       if (response.success && response.data) {
-        const newServer = response.data as Server;
-        setServers(prev => [...prev, newServer]);
-        logger.info('system', `Server added: ${newServer.name} (${newServer.ip})`);
-        
-        toast({
-          title: "Server hinzugefügt",
-          description: `${newServer.name} wurde erfolgreich hinzugefügt.`
-        });
-        
-        return newServer;
+        setServers(response.data);
+      } else {
+        setError(response.error || 'Failed to load servers');
+      }
+    } catch (error) {
+      setError('Backend connection failed');
+      logger.error('system', 'Failed to load servers', { error });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addServer = async (serverData: Omit<ServerWithKeyStatus, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const response = await backendApi.addServer(serverData);
+      if (response.success && response.data) {
+        setServers(prev => [...prev, { ...response.data, keyDeployed: false }]);
+        logger.info('system', `✅ Server added: ${response.data.name}`);
+        return response.data;
       } else {
         throw new Error(response.error || 'Failed to add server');
       }
     } catch (error) {
       logger.error('system', 'Failed to add server', { error });
-      toast({
-        title: "Fehler",
-        description: "Server konnte nicht hinzugefügt werden.",
-        variant: "destructive"
-      });
       throw error;
     }
   };
 
-  const updateServer = (serverId: string, updates: Partial<Server>) => {
-    setServers(prev => prev.map(server => 
-      server.id === serverId ? { ...server, ...updates } : server
-    ));
-  };
-
-  const removeServer = (serverId: string) => {
-    setServers(prev => prev.filter(server => server.id !== serverId));
-    setAuditResults(prev => prev.filter(result => result.serverId !== serverId));
+  const removeServer = async (serverId: string) => {
+    try {
+      const response = await backendApi.deleteServer(serverId);
+      if (response.success) {
+        setServers(prev => prev.filter(s => s.id !== serverId));
+        logger.info('system', `🗑️ Server removed: ${serverId}`);
+      } else {
+        throw new Error(response.error || 'Failed to remove server');
+      }
+    } catch (error) {
+      logger.error('system', 'Failed to remove server', { error });
+      throw error;
+    }
   };
 
   const testConnection = async (serverId: string): Promise<boolean> => {
     setIsScanning(serverId);
-    
     try {
-      const response = await backendService.connectSSH(serverId);
-      
+      const response = await backendApi.connectSSH(serverId);
       if (response.success) {
         // Update server status
-        setServers(prev => prev.map(server => 
-          server.id === serverId 
-            ? { ...server, status: 'online' }
-            : server
+        setServers(prev => prev.map(s => 
+          s.id === serverId 
+            ? { ...s, status: 'online' as const }
+            : s
         ));
-        
-        logger.info('system', `SSH connection test successful for server ${serverId}`);
+        logger.info('ssh', `✅ Connection test successful: ${serverId}`);
         return true;
       } else {
-        // Update server status
-        setServers(prev => prev.map(server => 
-          server.id === serverId 
-            ? { ...server, status: 'offline' }
-            : server
+        // Update server status to offline
+        setServers(prev => prev.map(s => 
+          s.id === serverId 
+            ? { ...s, status: 'offline' as const }
+            : s
         ));
-        
-        logger.error('system', `SSH connection test failed for server ${serverId}`, { error: response.error });
+        logger.error('ssh', `❌ Connection test failed: ${response.error}`);
         return false;
       }
     } catch (error) {
-      logger.error('system', `SSH connection test error for server ${serverId}`, { error });
+      setServers(prev => prev.map(s => 
+        s.id === serverId 
+          ? { ...s, status: 'offline' as const }
+          : s
+      ));
+      logger.error('ssh', 'Connection test error', { error });
       return false;
     } finally {
       setIsScanning(null);
     }
   };
 
-  const startAudit = async (serverId: string) => {
+  const markKeyDeployed = (serverId: string) => {
+    setServers(prev => prev.map(s => 
+      s.id === serverId 
+        ? { ...s, keyDeployed: true }
+        : s
+    ));
+    logger.info('ssh', `🔑 SSH key marked as deployed: ${serverId}`);
+  };
+
+  const startDataGathering = async (serverId: string): Promise<any> => {
     setIsScanning(serverId);
-    const server = servers.find(s => s.id === serverId);
-    
-    if (!server) {
-      setIsScanning(null);
-      return;
-    }
-
     try {
-      logger.info('system', `Starting security audit for ${server.name} (${server.ip})`);
-      
-      // 1. SSH-Verbindung herstellen
-      const connectionResponse = await backendService.connectSSH(serverId);
-      if (!connectionResponse.success) {
-        throw new Error('SSH connection failed: ' + connectionResponse.error);
+      // First connect to SSH
+      const connectResponse = await backendApi.connectSSH(serverId);
+      if (!connectResponse.success || !connectResponse.data) {
+        throw new Error('SSH connection failed');
       }
-      
-      const connectionId = (connectionResponse.data as any).connectionId;
-      
-      // 2. Systemdaten sammeln
-      const dataResponse = await backendService.gatherSystemData(connectionId);
-      if (!dataResponse.success) {
-        throw new Error('Data gathering failed: ' + dataResponse.error);
-      }
-      
-      const systemData = (dataResponse.data as any).systemData;
-      
-      // 3. Audit-Ergebnis erstellen
-      const auditResult: AuditResult = {
-        id: crypto.randomUUID(),
-        serverId,
-        timestamp: new Date().toISOString(),
-        status: 'completed',
-        scores: {
-          overall: 75,
-          security: 70,
-          performance: 80,
-          compliance: 75
-        },
-        findings: [],
-        systemData: systemData.data,
-        analysis: 'Audit completed successfully via backend'
-      };
 
-      // Audit-Ergebnis hinzufügen
-      setAuditResults(prev => [auditResult, ...prev]);
-      
-      // Server-Status und Score aktualisieren
-      setServers(prev => prev.map(s => 
-        s.id === serverId 
-          ? { 
-              ...s, 
-              status: 'online',
-              securityScore: auditResult.scores.overall,
-              lastAudit: auditResult.timestamp
-            }
-          : s
-      ));
-      
-      logger.info('system', `Security audit completed for ${server.name}`, {
-        overallScore: auditResult.scores.overall,
-        findingsCount: auditResult.findings.length
+      const { connectionId } = connectResponse.data;
+
+      // Upload and execute the data gathering script
+      const scriptResponse = await backendApi.request<{ scriptPath: string }>('/api/ssh/upload-script', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          connectionId,
+          scriptType: 'proxmox_data_export'
+        })
       });
-      
+
+      if (!scriptResponse.success) {
+        throw new Error('Failed to upload data gathering script');
+      }
+
+      // Execute the script
+      const executeResponse = await backendApi.executeSSHCommand(
+        connectionId, 
+        `chmod +x ${scriptResponse.data?.scriptPath} && ${scriptResponse.data?.scriptPath}`
+      );
+
+      if (executeResponse.success) {
+        logger.info('ssh', `📊 Data gathering completed: ${serverId}`);
+        return executeResponse.data;
+      } else {
+        throw new Error('Script execution failed');
+      }
     } catch (error) {
-      logger.error('system', `Security audit failed for ${server.name}`, { error });
-      
-      // Fehlgeschlagenes Audit-Ergebnis
-      const failedAudit: AuditResult = {
-        id: crypto.randomUUID(),
-        serverId,
-        timestamp: new Date().toISOString(),
-        status: 'failed',
-        scores: { overall: 0, security: 0, performance: 0, compliance: 0 },
-        findings: [],
-        analysis: `Audit failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-      
-      setAuditResults(prev => [failedAudit, ...prev]);
-      
+      logger.error('ssh', 'Data gathering failed', { error });
+      throw error;
     } finally {
       setIsScanning(null);
     }
   };
 
-  const startNetworkScan = async (): Promise<NetworkScanResult> => {
-    // Simulation für Demo - in Realität würde Backend Network Scan durchführen
-    const mockResult: NetworkScanResult = {
-      hosts: [
-        {
-          ip: '192.168.1.100',
-          hostname: 'web-server-01',
-          services: [{ port: 22, service: 'SSH', version: 'OpenSSH 8.9' }]
-        },
-        {
-          ip: '192.168.1.101', 
-          hostname: 'db-server-01',
-          services: [{ port: 22, service: 'SSH', version: 'OpenSSH 8.9' }]
-        }
-      ],
-      scanTime: 2500
-    };
-    
-    return new Promise(resolve => {
-      setTimeout(() => resolve(mockResult), 2500);
-    });
+  const startAudit = async (serverId: string, model: string = 'llama3.1:8b'): Promise<AuditResult> => {
+    setIsScanning(serverId);
+    try {
+      const response = await backendApi.startAudit(serverId, model);
+      if (response.success && response.data) {
+        const auditId = response.data.auditId;
+        
+        // Join audit room for real-time updates
+        socketService.joinAuditRoom(auditId);
+        
+        // Create initial audit result
+        const initialResult: AuditResult = {
+          id: auditId,
+          serverId,
+          serverName: servers.find(s => s.id === serverId)?.name || 'Unknown',
+          timestamp: new Date().toISOString(),
+          status: 'starting',
+          scores: { overall: 0, security: 0, performance: 0, compliance: 0 },
+          findings: [],
+          model,
+          startTime: new Date().toISOString()
+        };
+
+        setAuditResults(prev => [initialResult, ...prev]);
+        logger.info('audit', `🔍 Audit started: ${auditId}`);
+        
+        return initialResult;
+      } else {
+        throw new Error(response.error || 'Failed to start audit');
+      }
+    } catch (error) {
+      logger.error('audit', 'Failed to start audit', { error });
+      throw error;
+    } finally {
+      setIsScanning(null);
+    }
+  };
+
+  const getAuditProgress = async (auditId: string) => {
+    try {
+      const response = await backendApi.getAuditStatus(auditId);
+      if (response.success && response.data) {
+        // Update audit result with progress
+        setAuditResults(prev => prev.map(audit => 
+          audit.id === auditId 
+            ? { 
+                ...audit, 
+                status: response.data.status as any,
+                scores: response.data.scores 
+              }
+            : audit
+        ));
+        return response.data;
+      }
+    } catch (error) {
+      logger.error('audit', 'Failed to get audit progress', { error });
+    }
+  };
+
+  // Network scanning (simplified for backend)
+  const startNetworkScan = async () => {
+    const startTime = Date.now();
+    try {
+      const response = await backendApi.request<{
+        hosts: Array<{
+          ip: string;
+          hostname?: string;
+          services: Array<{ port: number; service: string; state: string }>;
+        }>;
+      }>('/api/network/scan', {
+        method: 'POST',
+        body: JSON.stringify({ range: '192.168.0.0/24' })
+      });
+
+      const scanTime = Date.now() - startTime;
+      
+      if (response.success && response.data) {
+        logger.info('network', `🌐 Network scan completed in ${scanTime}ms`);
+        return {
+          hosts: response.data.hosts,
+          scanTime
+        };
+      } else {
+        throw new Error(response.error || 'Network scan failed');
+      }
+    } catch (error) {
+      logger.error('network', 'Network scan failed', { error });
+      throw error;
+    }
   };
 
   return {
     servers,
     auditResults,
     isScanning,
+    publicKey,
+    loading,
+    error,
     addServer,
-    updateServer,
     removeServer,
     testConnection,
+    markKeyDeployed,
+    startDataGathering,
     startAudit,
-    startNetworkScan
+    getAuditProgress,
+    startNetworkScan,
+    refreshServers: loadServers
   };
 };

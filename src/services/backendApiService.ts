@@ -58,7 +58,7 @@ class BackendApiService {
     this.baseUrl = window.location.origin;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  public async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
       const url = `${this.baseUrl}${endpoint}`;
       logger.debug('system', `📤 ${options.method || 'GET'} ${endpoint}`);
