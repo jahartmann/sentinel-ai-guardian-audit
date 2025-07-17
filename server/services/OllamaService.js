@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export class OllamaService {
-  constructor(logger, baseUrl = 'http://127.0.0.1:11434') {
+  constructor(logger, baseUrl = 'http://192.168.0.48/api') {
     this.logger = logger;
     this.baseUrl = baseUrl;
     this.logger.info('Ollama', '🤖 Ollama service initialized', { baseUrl });
@@ -11,7 +11,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', '🔄 Testing connection to Ollama');
       
-      const response = await axios.get(`${this.baseUrl}/api/tags`, {
+      const response = await axios.get(`${this.baseUrl}/tags`, {
         timeout: 5000,
         headers: {
           'Content-Type': 'application/json'
@@ -48,7 +48,7 @@ export class OllamaService {
 
   async getAvailableModels() {
     try {
-      const response = await axios.get(`${this.baseUrl}/api/tags`, {
+      const response = await axios.get(`${this.baseUrl}/tags`, {
         timeout: 5000
       });
 
@@ -72,7 +72,7 @@ export class OllamaService {
         messageCount: messages.length
       });
 
-      const response = await axios.post(`${this.baseUrl}/api/chat`, {
+      const response = await axios.post(`${this.baseUrl}/chat`, {
         model,
         messages,
         stream: false,
@@ -113,7 +113,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', `🎯 Generating response with ${model}`);
 
-      const response = await axios.post(`${this.baseUrl}/api/generate`, {
+      const response = await axios.post(`${this.baseUrl}/generate`, {
         model,
         prompt,
         stream: false,
