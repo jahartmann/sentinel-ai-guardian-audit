@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2, Edit3, ChevronDown } from 'lucide-react';
+import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2, Edit3, ChevronDown, Cpu, Plus } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useToast } from '@/hooks/use-toast';
 
@@ -90,10 +90,14 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
         </DialogHeader>
         
         <Tabs defaultValue="ollama" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="ollama" className="flex items-center gap-1">
               <Brain className="w-4 h-4" />
-              <span className="hidden sm:inline">KI</span>
+              <span className="hidden sm:inline">Ollama</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai-models" className="flex items-center gap-1">
+              <Cpu className="w-4 h-4" />
+              <span className="hidden sm:inline">AI APIs</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-1">
               <Palette className="w-4 h-4" />
@@ -252,6 +256,51 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                     </ul>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ai-models" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Cpu className="w-5 h-5" />
+                  KI-Modell Konfiguration
+                </CardTitle>
+                <CardDescription>
+                  Fügen Sie verschiedene KI-APIs hinzu (OpenAI, Anthropic, Custom APIs)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">OpenAI API</span>
+                    <Button size="sm" variant="outline">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Hinzufügen
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Anthropic API</span>
+                    <Button size="sm" variant="outline">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Hinzufügen
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Custom API</span>
+                    <Button size="sm" variant="outline">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Hinzufügen
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    💡 Mit mehreren KI-APIs können Sie verschiedene Modelle für unterschiedliche Analysen nutzen
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

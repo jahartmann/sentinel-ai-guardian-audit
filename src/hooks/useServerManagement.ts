@@ -83,7 +83,8 @@ export const useServerManagement = () => {
     updateServerStatus(serverId, 'warning');
     
     try {
-      const sshService = new (await import('@/services/sshService')).SSHService();
+      const { RealSSHService } = await import('@/services/realSSHService');
+      const sshService = new RealSSHService();
       const connection = await sshService.connect(server);
       
       if (connection.status === 'connected') {
@@ -123,14 +124,15 @@ export const useServerManagement = () => {
     setAuditResults(prev => [...prev, newAudit]);
 
     try {
-      const sshService = new (await import('@/services/sshService')).SSHService();
+      const { RealSSHService } = await import('@/services/realSSHService');
+      const sshService = new RealSSHService();
       const connection = await sshService.connect(server);
       
       if (connection.status !== 'connected') {
         throw new Error(connection.error || 'Failed to connect to server');
       }
 
-      // Perform real security audit
+      // Perform real security audit with actual data
       const securityAudit = await sshService.performSecurityAudit(connection.id);
       
       const completedAudit: AuditResult = {
@@ -173,8 +175,8 @@ export const useServerManagement = () => {
           title: 'Verbindungsfehler',
           severity: 'critical',
           category: 'Connection',
-          description: error instanceof Error ? error.message : 'Unbekannter Fehler',
-          recommendation: 'Überprüfen Sie die Verbindungseinstellungen und Zugangsdaten.'
+          description: error instanceof Error ? error.message : 'Unbekannter Fehler beim Verbinden zum Server',
+          recommendation: 'Überprüfen Sie IP-Adresse, Port, Benutzername und Passwort. Stellen Sie sicher, dass SSH aktiviert ist.'
         }]
       };
 

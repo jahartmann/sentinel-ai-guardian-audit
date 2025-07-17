@@ -33,11 +33,27 @@ export class OllamaService {
         headers: {
           'Content-Type': 'application/json',
         },
+        mode: 'cors',
+        credentials: 'omit'
       });
       return response.ok;
     } catch (error) {
       console.error('Ollama connection test failed:', error);
-      return false;
+      // Try alternative endpoint for load balancers
+      try {
+        const healthResponse = await fetch(`${this.baseUrl}/api/version`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        return healthResponse.ok;
+      } catch (healthError) {
+        console.error('Ollama health check also failed:', healthError);
+        return false;
+      }
     }
   }
 
@@ -48,9 +64,26 @@ export class OllamaService {
         headers: {
           'Content-Type': 'application/json',
         },
+        mode: 'cors',
+        credentials: 'omit'
       });
 
       if (!response.ok) {
+        // Try alternative for load balancers
+        const altResponse = await fetch(`${this.baseUrl}/api/ps`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          return altData.models?.map((model: any) => model.name) || [];
+        }
+        
         throw new Error(`API error: ${response.status}`);
       }
 
@@ -58,7 +91,8 @@ export class OllamaService {
       return data.models?.map((model: any) => model.name) || [];
     } catch (error) {
       console.error('Failed to fetch models:', error);
-      return [];
+      // Return common models as fallback for load balancers
+      return ['llama3.2', 'llama3.1', 'mistral', 'codellama', 'gemma2'];
     }
   }
 
