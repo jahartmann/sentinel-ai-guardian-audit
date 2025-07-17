@@ -20,7 +20,7 @@ sudo systemctl start security-audit
 sudo systemctl status security-audit
 
 # Zugriff über Browser
-http://YOUR_SERVER_IP:3000
+http://YOUR_SERVER_IP:5000
 ```
 
 ## 📋 Funktionen
@@ -91,8 +91,8 @@ sudo systemctl start security-audit
 ### Umgebungsvariablen
 ```bash
 # In /etc/systemd/system/security-audit.service
-Environment=PORT=3000
-Environment=WS_PORT=3001
+Environment=PORT=5000
+Environment=WS_PORT=5001
 Environment=DATA_DIR=/opt/security-audit/data
 Environment=OLLAMA_URL=http://127.0.0.1:11434
 ```
@@ -109,12 +109,12 @@ ssh-copy-id -i /opt/security-audit/.ssh/id_rsa.pub user@target-server
 ### Firewall
 ```bash
 # UFW (Ubuntu)
-sudo ufw allow 3000/tcp
-sudo ufw allow 3001/tcp
+sudo ufw allow 5000/tcp
+sudo ufw allow 5001/tcp
 
 # Firewalld (CentOS/RHEL)
-sudo firewall-cmd --permanent --add-port=3000/tcp
-sudo firewall-cmd --permanent --add-port=3001/tcp
+sudo firewall-cmd --permanent --add-port=5000/tcp
+sudo firewall-cmd --permanent --add-port=5001/tcp
 sudo firewall-cmd --reload
 ```
 
