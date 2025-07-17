@@ -107,8 +107,8 @@ const Index = () => {
   const startNetworkMonitoring = async () => {
     try {
       const networkService = new (await import('@/services/networkService')).NetworkService();
-      const traffic = await networkService.monitorTraffic();
-      const anomalies = await networkService.detectAnomalies(traffic);
+      const traffic = await networkService.monitorRealNetworkTraffic();
+      const anomalies = await networkService.detectRealAnomalies(traffic);
       
       const newEvents = anomalies.map(anomaly => ({
         timestamp: new Date(anomaly.timestamp).toLocaleString('de-DE'),
