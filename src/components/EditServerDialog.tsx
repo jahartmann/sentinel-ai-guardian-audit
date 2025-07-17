@@ -4,27 +4,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Server, Plus } from 'lucide-react';
+import { Edit, Server } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Server as ServerType } from '@/hooks/useServerManagement';
 
-interface AddServerDialogProps {
-  onAddServer: (server: Omit<ServerType, 'id' | 'status'>) => ServerType;
+interface EditServerDialogProps {
+  server: ServerType;
+  onUpdateServer: (serverId: string, updates: Partial<ServerType>) => void;
   onTestConnection: (serverId: string) => Promise<boolean>;
   trigger?: React.ReactNode;
 }
 
-export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddServerDialogProps) => {
+export const EditServerDialog = ({ server, onUpdateServer, onTestConnection, trigger }: EditServerDialogProps) => {
   const [open, setOpen] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    hostname: '',
-    ip: '',
-    port: 22,
-    username: '',
-    password: '',
-    connectionType: 'ssh' as 'ssh' | 'winrm' | 'snmp'
+    name: server.name,
+    hostname: server.hostname,
+    ip: server.ip,
+    port: server.port,
+    username: server.username,
+    password: server.password || '',
+    connectionType: server.connectionType,
+    os: server.os || ''
   });
   const { toast } = useToast();
 
@@ -43,39 +45,30 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
     setIsTestingConnection(true);
     
     try {
-      // Erst Server hinzufügen
-      const newServer = onAddServer(formData);
+      // Server-Daten aktualisieren
+      onUpdateServer(server.id, formData);
       
-      // Dann Verbindung testen
-      const connectionSuccessful = await onTestConnection(newServer.id);
+      // Verbindung testen
+      const connectionSuccessful = await onTestConnection(server.id);
       
       if (connectionSuccessful) {
         toast({
-          title: 'Server hinzugefügt',
-          description: `${newServer.name} wurde erfolgreich hinzugefügt und die Verbindung getestet.`
+          title: 'Server aktualisiert',
+          description: `${formData.name} wurde erfolgreich aktualisiert und die Verbindung getestet.`
         });
       } else {
         toast({
-          title: 'Server hinzugefügt',
-          description: `${newServer.name} wurde hinzugefügt, aber die Verbindung konnte nicht hergestellt werden.`,
+          title: 'Server aktualisiert',
+          description: `${formData.name} wurde aktualisiert, aber die Verbindung konnte nicht hergestellt werden.`,
           variant: 'destructive'
         });
       }
       
-      setFormData({
-        name: '',
-        hostname: '',
-        ip: '',
-        port: 22,
-        username: '',
-        password: '',
-        connectionType: 'ssh'
-      });
       setOpen(false);
     } catch (error) {
       toast({
         title: 'Fehler',
-        description: 'Server konnte nicht hinzugefügt werden.',
+        description: 'Server konnte nicht aktualisiert werden.',
         variant: 'destructive'
       });
     } finally {
@@ -87,9 +80,9 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Server hinzufügen
+          <Button variant="outline" size="sm">
+            <Edit className="w-4 h-4 mr-2" />
+            Bearbeiten
           </Button>
         )}
       </DialogTrigger>
@@ -97,7 +90,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Server className="w-5 h-5" />
-            Neuen Server hinzufügen
+            Server bearbeiten
           </DialogTitle>
         </DialogHeader>
         
@@ -170,23 +163,35 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="connectionType">Verbindungstyp</Label>
-            <Select 
-              value={formData.connectionType} 
-              onValueChange={(value: 'ssh' | 'winrm' | 'snmp') => 
-                setFormData(prev => ({ ...prev, connectionType: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ssh">SSH (Linux/Unix)</SelectItem>
-                <SelectItem value="winrm">WinRM (Windows)</SelectItem>
-                <SelectItem value="snmp">SNMP (Network Devices)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="connectionType">Verbindungstyp</Label>
+              <Select 
+                value={formData.connectionType} 
+                onValueChange={(value: 'ssh' | 'winrm' | 'snmp') => 
+                  setFormData(prev => ({ ...prev, connectionType: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ssh">SSH (Linux/Unix)</SelectItem>
+                  <SelectItem value="winrm">WinRM (Windows)</SelectItem>
+                  <SelectItem value="snmp">SNMP (Network Devices)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="os">Betriebssystem</Label>
+              <Input
+                id="os"
+                value={formData.os}
+                onChange={(e) => setFormData(prev => ({ ...prev, os: e.target.value }))}
+                placeholder="z.B. Ubuntu 22.04"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -194,7 +199,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
               Abbrechen
             </Button>
             <Button type="submit" disabled={isTestingConnection}>
-              {isTestingConnection ? 'Verbindung wird getestet...' : 'Server hinzufügen'}
+              {isTestingConnection ? 'Verbindung wird getestet...' : 'Server aktualisieren'}
             </Button>
           </div>
         </form>

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
+import { EditServerDialog } from "@/components/EditServerDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AIConnectionStatus } from "@/components/AIConnectionStatus";
 import { useServerManagement } from "@/hooks/useServerManagement";
@@ -28,7 +29,8 @@ import {
   Brain,
   Trash2,
   Play,
-  Loader2
+  Loader2,
+  Edit
 } from "lucide-react";
 
 const Index = () => {
@@ -39,7 +41,8 @@ const Index = () => {
     servers, 
     auditResults, 
     isScanning,
-    addServer, 
+    addServer,
+    updateServer,
     removeServer, 
     testConnection, 
     startAudit, 
@@ -281,6 +284,7 @@ const Index = () => {
                   </Button>
                   <AddServerDialog 
                     onAddServer={addServer}
+                    onTestConnection={testConnection}
                     trigger={
                       <Button variant="outline" className="h-16 flex flex-col items-center justify-center space-y-2">
                         <Server className="w-6 h-6" />
@@ -348,7 +352,7 @@ const Index = () => {
           <TabsContent value="servers" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Server-Verbindungen</h2>
-              <AddServerDialog onAddServer={addServer} />
+        <AddServerDialog onAddServer={addServer} onTestConnection={testConnection} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -384,7 +388,7 @@ const Index = () => {
                           size="sm" 
                           variant="outline"
                           onClick={() => handleStartAudit(server.id)}
-                          disabled={isScanning === server.id}
+                          disabled={isScanning === server.id || server.status === 'offline'}
                         >
                           {isScanning === server.id ? (
                             <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -397,12 +401,24 @@ const Index = () => {
                           size="sm" 
                           variant="outline"
                           asChild
+                          disabled={server.status === 'offline'}
                         >
                           <Link to={`/server/${server.id}/audit`}>
                             <FileText className="w-4 h-4 mr-1" />
                             Bericht
                           </Link>
                         </Button>
+                        <EditServerDialog
+                          server={server}
+                          onUpdateServer={updateServer}
+                          onTestConnection={testConnection}
+                          trigger={
+                            <Button size="sm" variant="outline">
+                              <Edit className="w-4 h-4 mr-1" />
+                              Bearbeiten
+                            </Button>
+                          }
+                        />
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -423,7 +439,7 @@ const Index = () => {
                   <p className="text-muted-foreground mb-4">
                     Fügen Sie Ihren ersten Server hinzu, um mit der Sicherheitsanalyse zu beginnen.
                   </p>
-                  <AddServerDialog onAddServer={addServer} />
+                  <AddServerDialog onAddServer={addServer} onTestConnection={testConnection} />
                 </div>
               )}
             </div>

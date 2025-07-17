@@ -70,6 +70,12 @@ export const useServerManagement = () => {
     setAuditResults(prev => prev.filter(result => result.serverId !== serverId));
   }, []);
 
+  const updateServer = useCallback((serverId: string, updates: Partial<Server>) => {
+    setServers(prev => prev.map(server => 
+      server.id === serverId ? { ...server, ...updates } : server
+    ));
+  }, []);
+
   const updateServerStatus = useCallback((serverId: string, status: Server['status']) => {
     setServers(prev => prev.map(server => 
       server.id === serverId ? { ...server, status } : server
@@ -228,6 +234,7 @@ export const useServerManagement = () => {
     auditResults,
     isScanning,
     addServer,
+    updateServer,
     removeServer,
     testConnection,
     startAudit,

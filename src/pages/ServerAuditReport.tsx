@@ -25,71 +25,7 @@ import {
 } from "lucide-react";
 import { PDFExport } from "@/components/PDFExport";
 
-// Mock data - in real app would come from API
-const mockAuditData = {
-  serverId: "srv-001",
-  serverName: "Production Web Server",
-  hostname: "web-prod-01.company.com",
-  ip: "192.168.1.100",
-  os: "Ubuntu 22.04 LTS",
-  lastScan: "2024-01-15T10:30:00Z",
-  overallScore: 76,
-  securityScore: 68,
-  performanceScore: 84,
-  complianceScore: 71,
-  vulnerabilities: {
-    critical: 2,
-    high: 5,
-    medium: 12,
-    low: 8,
-    info: 3
-  },
-  findings: [
-    {
-      id: 1,
-      title: "SSH Root Login Enabled",
-      severity: "critical",
-      category: "Security",
-      description: "SSH root login is enabled, which poses a significant security risk.",
-      recommendation: "Disable SSH root login and use sudo for administrative tasks.",
-      status: "open",
-      cve: "N/A"
-    },
-    {
-      id: 2,
-      title: "Outdated OpenSSL Version",
-      severity: "high",
-      category: "Security",
-      description: "OpenSSL version 1.1.1f is outdated and contains known vulnerabilities.",
-      recommendation: "Update OpenSSL to the latest stable version 3.0.x.",
-      status: "open",
-      cve: "CVE-2023-0464"
-    },
-    {
-      id: 3,
-      title: "High Memory Usage",
-      severity: "medium",
-      category: "Performance",
-      description: "Memory usage consistently above 85% may cause performance issues.",
-      recommendation: "Consider adding more RAM or optimizing memory-intensive processes.",
-      status: "acknowledged"
-    }
-  ],
-  systemInfo: {
-    uptime: "45 days, 12 hours",
-    loadAverage: "2.34, 2.12, 1.98",
-    memoryUsage: "12.8GB / 16GB (80%)",
-    diskUsage: "180GB / 500GB (36%)",
-    networkConnections: 127,
-    runningProcesses: 312
-  },
-  compliance: {
-    cis: 78,
-    nist: 72,
-    iso27001: 69,
-    pci: 81
-  }
-};
+// No more mock data - using only real server data
 
 export default function ServerAuditReport() {
   const { serverId } = useParams();
@@ -102,28 +38,60 @@ export default function ServerAuditReport() {
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )[0];
 
-  // Use actual server data or fallback to mock data
-  const auditData = server ? {
+  // Use actual server data only - no mock data
+  const auditData = server && latestAudit ? {
     serverId: server.id,
     serverName: server.name,
     hostname: server.hostname,
     ip: server.ip,
     os: server.os || "Unknown OS",
     lastScan: server.lastScan || new Date().toISOString(),
-    overallScore: latestAudit?.overallScore || mockAuditData.overallScore,
-    securityScore: latestAudit?.securityScore || mockAuditData.securityScore,
-    performanceScore: latestAudit?.performanceScore || mockAuditData.performanceScore,
-    complianceScore: latestAudit?.complianceScore || mockAuditData.complianceScore,
-    vulnerabilities: mockAuditData.vulnerabilities, // Keep mock data for now
-    findings: latestAudit?.findings.map(f => ({
+    overallScore: latestAudit.overallScore,
+    securityScore: latestAudit.securityScore,
+    performanceScore: latestAudit.performanceScore,
+    complianceScore: latestAudit.complianceScore,
+    vulnerabilities: {
+      critical: latestAudit.findings.filter(f => f.severity === 'critical').length,
+      high: latestAudit.findings.filter(f => f.severity === 'high').length,
+      medium: latestAudit.findings.filter(f => f.severity === 'medium').length,
+      low: latestAudit.findings.filter(f => f.severity === 'low').length,
+      info: latestAudit.findings.filter(f => f.severity === 'info').length
+    },
+    findings: latestAudit.findings.map(f => ({
       ...f,
       id: parseInt(f.id) || Math.random(),
       status: 'open',
       cve: 'N/A'
-    })) || mockAuditData.findings,
-    systemInfo: mockAuditData.systemInfo, // Keep mock data for now
-    compliance: mockAuditData.compliance // Keep mock data for now
-  } : mockAuditData;
+    })),
+    systemInfo: {
+      uptime: "Nicht verfügbar (Server offline)",
+      loadAverage: "N/A",
+      memoryUsage: "N/A",
+      diskUsage: "N/A",
+      networkConnections: 0,
+      runningProcesses: 0
+    },
+    compliance: {
+      cis: latestAudit.complianceScore,
+      nist: latestAudit.complianceScore,
+      iso27001: latestAudit.complianceScore,
+      pci: latestAudit.complianceScore
+    }
+  } : null;
+
+  if (!auditData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-background/50 p-6">
+        <div className="max-w-7xl mx-auto text-center py-12">
+          <Server className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Keine Audit-Daten verfügbar</h1>
+          <p className="text-muted-foreground">
+            Für diesen Server wurden noch keine Audits durchgeführt oder der Server ist offline.
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   const getSeverityColor = (severity: string) => {
     switch (severity) {
