@@ -7,7 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { useServerManagement } from "@/hooks/useServerManagement";
+import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
@@ -31,6 +33,7 @@ import {
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isNetworkScanning, setIsNetworkScanning] = useState(false);
+  const { settings } = useSettings();
   const { 
     servers, 
     auditResults, 
@@ -130,14 +133,11 @@ const Index = () => {
               </Badge>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="text-success border-success">
-                <Activity className="w-3 h-3 mr-1" />
-                Ollama Connected
+              <Badge variant="outline" className={settings.ollama.enabled ? "text-success border-success" : "text-muted-foreground border-muted-foreground"}>
+                <Brain className="w-3 h-3 mr-1" />
+                Ollama {settings.ollama.enabled ? 'Connected' : 'Disabled'}
               </Badge>
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
+              <SettingsDialog />
             </div>
           </div>
         </div>

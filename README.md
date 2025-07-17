@@ -1,73 +1,195 @@
-# Welcome to your Lovable project
+# SecureAI Appliance
 
-## Project info
+Eine KI-gesteuerte Sicherheits-Appliance für Linux-Server mit Ollama-Integration.
 
-**URL**: https://lovable.dev/projects/dedc10ef-45c7-49de-bfa7-9eec4b558c2a
+## Features
 
-## How can I edit this code?
+- **Server-Management**: Hinzufügen und Verwalten von Linux-Servern, VMs und Hypervisoren
+- **KI-gesteuerte Analyse**: Integration mit lokaler Ollama-Installation für intelligente Sicherheitsanalysen
+- **Audit-Berichte**: Detaillierte Sicherheits- und Optimierungsberichte mit PDF-Export
+- **Netzwerk-Scanning**: Automatische Erkennung ungewöhnlicher Netzwerk-Ereignisse
+- **Dashboard**: Übersichtliche Darstellung aller Sicherheitsmetriken
 
-There are several ways of editing your application.
+## Lokale Installation
 
-**Use Lovable**
+### Voraussetzungen
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/dedc10ef-45c7-49de-bfa7-9eec4b558c2a) and start prompting.
+- Node.js 18+ 
+- npm oder yarn
+- Ollama (optional, für KI-Features)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Schnelle Installation (Empfohlen)
 
-**Use your preferred IDE**
+1. Repository klonen:
+```bash
+git clone <repository-url>
+cd secureai-appliance
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. Setup-Script ausführen:
+```bash
+# Linux/Mac
+chmod +x setup.sh
+./setup.sh
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Windows
+setup.bat
+```
 
-Follow these steps:
+3. Anwendung starten:
+```bash
+# Linux/Mac
+./start.sh
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Windows
+start.bat
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Manuelle Installation
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. Repository klonen:
+```bash
+git clone <repository-url>
+cd secureai-appliance
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+2. Abhängigkeiten installieren:
+```bash
+npm install
+```
+
+3. Entwicklungsserver starten:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Build für Produktion:
+```bash
+npm run build
+npm run start
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Ollama Setup (Optional)
 
-**Use GitHub Codespaces**
+Für KI-gesteuerte Analysen installieren Sie Ollama:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Ollama herunterladen und installieren: https://ollama.ai
+2. Modell herunterladen:
+```bash
+ollama pull llama2
+```
+3. Ollama starten:
+```bash
+ollama serve
+```
+4. In der Anwendung unter Einstellungen → KI die Ollama-Integration konfigurieren
 
-## What technologies are used for this project?
+### Konfiguration
 
-This project is built with:
+Die Anwendung speichert alle Einstellungen lokal im Browser (localStorage):
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Ollama-Konfiguration**: Server-URL und Modell-Auswahl
+- **Server-Verbindungen**: SSH/WinRM-Zugangsdaten
+- **Audit-Verlauf**: Scan-Ergebnisse und Berichte
 
-## How can I deploy this project?
+## Verwendung
 
-Simply open [Lovable](https://lovable.dev/projects/dedc10ef-45c7-49de-bfa7-9eec4b558c2a) and click on Share -> Publish.
+### Server hinzufügen
 
-## Can I connect a custom domain to my Lovable project?
+1. Auf "Server hinzufügen" klicken
+2. Server-Details eingeben (Name, IP, Zugangsdaten)
+3. Verbindung testen
+4. Server speichern
 
-Yes, you can!
+### Sicherheits-Audit starten
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. Server auswählen
+2. "Audit" Button klicken
+3. Warten auf Analyse-Ergebnisse
+4. Detailbericht anzeigen oder PDF exportieren
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Netzwerk-Scanning
+
+1. "Netzwerk Scan" Button verwenden
+2. Ungewöhnliche Ereignisse werden automatisch erkannt
+3. Ergebnisse in der Netzwerk-Übersicht einsehen
+
+## Technologie-Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Routing**: React Router
+- **UI-Komponenten**: Shadcn/ui, Radix UI
+- **Charts**: Recharts
+- **PDF-Export**: jsPDF
+- **Build-Tool**: Vite
+
+## Entwicklung
+
+### Projektstruktur
+
+```
+src/
+├── components/         # UI-Komponenten
+├── hooks/             # React Hooks
+├── pages/             # Seiten-Komponenten  
+├── services/          # API-Services
+└── lib/               # Utilities
+```
+
+### Neue Features hinzufügen
+
+1. Branch erstellen
+2. Feature entwickeln
+3. Tests hinzufügen
+4. Pull Request erstellen
+
+## Deployment
+
+### Statisches Hosting
+
+```bash
+npm run build
+# dist/ Ordner auf Webserver hochladen
+```
+
+### Docker
+
+```dockerfile
+FROM nginx:alpine
+COPY dist/ /usr/share/nginx/html/
+EXPOSE 80
+```
+
+### Lokaler Server
+
+```bash
+npm run preview
+```
+
+## Sicherheit
+
+- Alle Server-Verbindungen werden lokal gespeichert
+- Keine Daten werden an externe Services gesendet
+- Ollama läuft lokal (keine Cloud-Abhängigkeit)
+- HTTPS wird für Produktions-Deployments empfohlen
+
+## API-Endpunkte
+
+Die Anwendung ist vollständig frontend-basiert. Für echte Server-Verbindungen in Produktionsumgebungen sollten entsprechende Backend-APIs implementiert werden.
+
+## Support
+
+Bei Fragen oder Problemen:
+
+1. Issues im GitHub Repository erstellen
+2. Dokumentation prüfen
+3. Community-Forum nutzen
+
+## Original Lovable Project
+
+Dieses Projekt wurde mit Lovable erstellt:
+- **URL**: https://lovable.dev/projects/dedc10ef-45c7-49de-bfa7-9eec4b558c2a
+
+## Lizenz
+
+MIT License - siehe LICENSE Datei für Details.
