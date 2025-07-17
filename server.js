@@ -4,7 +4,7 @@
 
 import express from 'express';
 import { NodeSSH } from 'node-ssh';
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import { promises as fs } from 'fs';
 import path from 'path';
 import cors from 'cors';
@@ -47,7 +47,7 @@ class Logger {
       pid: process.pid
     };
 
-    console.log(`[${logEntry.timestamp}] ${level.upper()} [${category}] ${message}`);
+    console.log(`[${logEntry.timestamp}] ${level.toUpperCase()} [${category}] ${message}`);
     
     try {
       await fs.appendFile(this.logFile, JSON.stringify(logEntry) + '\n');
@@ -401,7 +401,7 @@ app.post('/api/ollama/chat', async (req, res) => {
 });
 
 // WebSocket für Console (wie in Python mit SocketIO)
-const wss = new WebSocket.Server({ port: WS_PORT });
+const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on('connection', (ws) => {
   logger.info('websocket', '🔌 Console WebSocket connected');
