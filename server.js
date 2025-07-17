@@ -2,14 +2,18 @@
 // Linux Headless Security Audit Server
 // Basierend auf Ihrer Python-App Implementation
 
-const express = require('express');
-const { NodeSSH } = require('node-ssh');
-const WebSocket = require('ws');
-const fs = require('fs').promises;
-const path = require('path');
-const cors = require('cors');
-const axios = require('axios');
-const crypto = require('crypto');
+import express from 'express';
+import { NodeSSH } from 'node-ssh';
+import WebSocket from 'ws';
+import { promises as fs } from 'fs';
+import path from 'path';
+import cors from 'cors';
+import axios from 'axios';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
