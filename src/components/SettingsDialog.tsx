@@ -217,9 +217,9 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                               </SelectItem>
                             ))
                            ) : (
-                            <SelectItem value="" disabled>
-                              Testen Sie die Verbindung, um Modelle zu laden
-                            </SelectItem>
+                             <div className="p-2 text-sm text-muted-foreground text-center">
+                               Testen Sie die Verbindung, um Modelle zu laden
+                             </div>
                            )}
                         </SelectContent>
                       </Select>
