@@ -45,12 +45,7 @@ export const SystemLogViewer = () => {
   useEffect(() => {
     // System-weite Event-Logs hinzufügen
     const logSystemEvents = () => {
-      // Browser Events
-      const originalConsole = console.log;
-      console.log = (...args) => {
-        logger.logSystem('Console output', { message: args.join(' ') });
-        originalConsole.apply(console, args);
-      };
+      // Browser Events (ohne console.log Override um Recursion zu vermeiden)
 
       // Network Events
       const originalFetch = window.fetch;
