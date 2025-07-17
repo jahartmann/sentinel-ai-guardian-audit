@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AddServerDialog } from "@/components/AddServerDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { AIConnectionStatus } from "@/components/AIConnectionStatus";
 import { useServerManagement } from "@/hooks/useServerManagement";
 import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -92,11 +93,13 @@ const Index = () => {
     });
   };
 
-  const [networkEvents, setNetworkEvents] = useState([
-    { timestamp: "2024-01-15 14:30:25", event: "Unusual port scan detected", source: "192.168.1.100", severity: "medium", type: "Port Scan" },
-    { timestamp: "2024-01-15 14:28:12", event: "Failed login attempts", source: "192.168.1.200", severity: "high", type: "Authentication" },
-    { timestamp: "2024-01-15 14:25:45", event: "Suspicious DNS queries", source: "192.168.1.150", severity: "medium", type: "DNS Anomaly" },
-  ]);
+  const [networkEvents, setNetworkEvents] = useState<Array<{
+    timestamp: string;
+    event: string;
+    source: string;
+    severity: string;
+    type: string;
+  }>>([]);
 
   const startNetworkMonitoring = async () => {
     try {
@@ -161,10 +164,7 @@ const Index = () => {
               </Badge>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge variant="outline" className={settings.ollama.enabled ? "text-success border-success" : "text-muted-foreground border-muted-foreground"}>
-                <Brain className="w-3 h-3 mr-1" />
-                Ollama {settings.ollama.enabled ? 'Connected' : 'Disabled'}
-              </Badge>
+              <AIConnectionStatus />
               <SettingsDialog />
             </div>
           </div>
@@ -517,28 +517,34 @@ const Index = () => {
                       Aktualisieren
                     </Button>
                   </div>
-                  {networkEvents.map((event, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getSeverityColor(event.severity)}>
-                            {event.severity}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {event.type}
-                          </Badge>
-                          <span className="font-medium">{event.event}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {event.timestamp} • Quelle: {event.source}
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        <Eye className="w-4 h-4 mr-1" />
-                        Details
-                      </Button>
-                    </div>
-                  ))}
+                   {networkEvents.length === 0 ? (
+                     <p className="text-muted-foreground text-center py-4">
+                       Keine Netzwerk-Ereignisse erfasst. Klicken Sie auf "Aktualisieren" für eine Live-Analyse.
+                     </p>
+                   ) : (
+                     networkEvents.map((event, index) => (
+                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                         <div className="flex-1">
+                           <div className="flex items-center space-x-2">
+                             <Badge className={getSeverityColor(event.severity)}>
+                               {event.severity}
+                             </Badge>
+                             <Badge variant="outline" className="text-xs">
+                               {event.type}
+                             </Badge>
+                             <span className="font-medium">{event.event}</span>
+                           </div>
+                           <div className="text-sm text-muted-foreground mt-1">
+                             {event.timestamp} • Quelle: {event.source}
+                           </div>
+                         </div>
+                         <Button size="sm" variant="outline">
+                           <Eye className="w-4 h-4 mr-1" />
+                           Details
+                         </Button>
+                       </div>
+                     ))
+                   )}
                 </div>
               </CardContent>
             </Card>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,71 +31,21 @@ import {
   AlertTriangle,
   CheckCircle
 } from "lucide-react";
-
-// Mock data for audit reports
-const mockReports = [
-  {
-    id: "audit-001",
-    serverId: "srv-001",
-    serverName: "Production Web Server",
-    hostname: "web-prod-01.company.com",
-    lastScan: "2024-01-15T10:30:00Z",
-    overallScore: 76,
-    securityScore: 68,
-    status: "completed",
-    criticalIssues: 2,
-    highIssues: 5,
-    totalIssues: 30
-  },
-  {
-    id: "audit-002",
-    serverId: "srv-002",
-    serverName: "Database Server",
-    hostname: "db-prod-01.company.com",
-    lastScan: "2024-01-14T14:20:00Z",
-    overallScore: 82,
-    securityScore: 85,
-    status: "completed",
-    criticalIssues: 0,
-    highIssues: 2,
-    totalIssues: 15
-  },
-  {
-    id: "audit-003",
-    serverId: "srv-003",
-    serverName: "Application Server",
-    hostname: "app-prod-01.company.com",
-    lastScan: "2024-01-13T09:15:00Z",
-    overallScore: 65,
-    securityScore: 58,
-    status: "completed",
-    criticalIssues: 4,
-    highIssues: 8,
-    totalIssues: 42
-  },
-  {
-    id: "audit-004",
-    serverId: "srv-004",
-    serverName: "Load Balancer",
-    hostname: "lb-prod-01.company.com",
-    lastScan: "2024-01-12T16:45:00Z",
-    overallScore: 88,
-    securityScore: 92,
-    status: "completed",
-    criticalIssues: 0,
-    highIssues: 1,
-    totalIssues: 8
-  }
-];
+import { useServerManagement } from "@/hooks/useServerManagement";
 
 export default function AuditReports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("lastScan");
   const [filterStatus, setFilterStatus] = useState("all");
+  
+  const { auditResults, servers } = useServerManagement();
 
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.serverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.hostname.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredReports = auditResults.filter(report => {
+    const server = servers.find(s => s.id === report.serverId);
+    if (!server) return false;
+    
+    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         server.hostname.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || report.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -121,6 +71,16 @@ export default function AuditReports() {
       minute: "2-digit"
     });
   };
+
+  const criticalIssues = auditResults.reduce((sum, report) => 
+    sum + report.findings.filter(f => f.severity === 'critical').length, 0
+  );
+
+  const avgSecurityScore = auditResults.length > 0 
+    ? Math.round(auditResults.reduce((sum, report) => sum + report.securityScore, 0) / auditResults.length)
+    : 0;
+
+  const compliantServers = auditResults.filter(report => report.overallScore >= 80).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-background/50 p-6">
@@ -150,7 +110,7 @@ export default function AuditReports() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{mockReports.length}</div>
+              <div className="text-2xl font-bold text-foreground">{auditResults.length}</div>
             </CardContent>
           </Card>
 
@@ -163,7 +123,7 @@ export default function AuditReports() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {mockReports.reduce((sum, report) => sum + report.criticalIssues, 0)}
+                {criticalIssues}
               </div>
             </CardContent>
           </Card>
@@ -177,7 +137,7 @@ export default function AuditReports() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
-                {Math.round(mockReports.reduce((sum, report) => sum + report.securityScore, 0) / mockReports.length)}
+                {avgSecurityScore}
               </div>
             </CardContent>
           </Card>
@@ -191,7 +151,7 @@ export default function AuditReports() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {mockReports.filter(report => report.overallScore >= 80).length}
+                {compliantServers}
               </div>
             </CardContent>
           </Card>
@@ -232,7 +192,7 @@ export default function AuditReports() {
                 <SelectContent>
                   <SelectItem value="all">Alle</SelectItem>
                   <SelectItem value="completed">Abgeschlossen</SelectItem>
-                  <SelectItem value="pending">Ausstehend</SelectItem>
+                  <SelectItem value="running">Läuft</SelectItem>
                   <SelectItem value="failed">Fehlgeschlagen</SelectItem>
                 </SelectContent>
               </Select>
@@ -246,81 +206,97 @@ export default function AuditReports() {
             <CardTitle>Server Audit Reports</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Server</TableHead>
-                  <TableHead>Letzter Scan</TableHead>
-                  <TableHead>Gesamtscore</TableHead>
-                  <TableHead>Sicherheitsscore</TableHead>
-                  <TableHead>Issues</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredReports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{report.serverName}</div>
-                        <div className="text-sm text-muted-foreground">{report.hostname}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {formatDate(report.lastScan)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className={`font-semibold ${getScoreColor(report.overallScore)}`}>
-                        {report.overallScore}/100
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getScoreBadge(report.securityScore)}>
-                        {report.securityScore}/100
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {report.criticalIssues > 0 && (
-                          <div className="text-xs text-red-600">
-                            {report.criticalIssues} Critical
-                          </div>
-                        )}
-                        {report.highIssues > 0 && (
-                          <div className="text-xs text-orange-600">
-                            {report.highIssues} High
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          {report.totalIssues} Total
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {report.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/server/${report.serverId}/audit`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            {filteredReports.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  Keine Audit-Berichte verfügbar. Führen Sie einen Server-Audit durch, um Berichte zu sehen.
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Server</TableHead>
+                    <TableHead>Letzter Scan</TableHead>
+                    <TableHead>Gesamtscore</TableHead>
+                    <TableHead>Sicherheitsscore</TableHead>
+                    <TableHead>Issues</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aktionen</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredReports.map((report) => {
+                    const server = servers.find(s => s.id === report.serverId);
+                    const criticalCount = report.findings.filter(f => f.severity === 'critical').length;
+                    const highCount = report.findings.filter(f => f.severity === 'high').length;
+                    
+                    return (
+                      <TableRow key={report.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{server?.name || 'Unknown Server'}</div>
+                            <div className="text-sm text-muted-foreground">{server?.hostname || server?.ip}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {formatDate(report.timestamp)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className={`font-semibold ${getScoreColor(report.overallScore)}`}>
+                            {report.overallScore}/100
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getScoreBadge(report.securityScore)}>
+                            {report.securityScore}/100
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {criticalCount > 0 && (
+                              <div className="text-xs text-red-600">
+                                {criticalCount} Critical
+                              </div>
+                            )}
+                            {highCount > 0 && (
+                              <div className="text-xs text-orange-600">
+                                {highCount} High
+                              </div>
+                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {report.findings.length} Total
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {report.status === 'completed' ? 'Abgeschlossen' : 
+                             report.status === 'running' ? 'Läuft' : 
+                             report.status === 'failed' ? 'Fehlgeschlagen' : report.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/server/${report.serverId}/audit`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
