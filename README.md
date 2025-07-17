@@ -14,7 +14,7 @@ Eine KI-gesteuerte Sicherheits-Appliance für Linux-Server mit Ollama-Integratio
 
 ### Voraussetzungen
 
-- Node.js 18+ 
+- Node.js 20+ 
 - npm oder yarn
 - Ollama (optional, für KI-Features)
 
@@ -44,6 +44,21 @@ setup.bat
 # Windows
 start.bat
 ```
+
+### Updates
+
+Um die Anwendung auf die neueste Version zu aktualisieren:
+
+```bash
+# Linux/Mac
+chmod +x update.sh
+./update.sh
+
+# Windows
+update.bat
+```
+
+Die Update-Scripts prüfen automatisch auf neue Versionen und installieren diese. Ihre Konfigurationen bleiben dabei erhalten.
 
 ### Manuelle Installation
 

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2, Edit3, ChevronDown } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,6 +21,8 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [customModelMode, setCustomModelMode] = useState(false);
+  const [customModel, setCustomModel] = useState('');
   const { settings, updateSettings, updateOllamaConfig, testOllamaConnection, getAvailableModels } = useSettings();
   const { toast } = useToast();
 
@@ -168,36 +170,70 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ollama-model">Modell</Label>
-                  <Select
-                    value={settings.ollama.model}
-                    onValueChange={(model) => updateOllamaConfig({ model })}
-                    disabled={!settings.ollama.enabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Modell auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableModels.length > 0 ? (
-                        availableModels.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <>
-                          <SelectItem value="llama2">llama2</SelectItem>
-                          <SelectItem value="llama2:13b">llama2:13b</SelectItem>
-                          <SelectItem value="codellama">codellama</SelectItem>
-                          <SelectItem value="mistral">mistral</SelectItem>
-                        </>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="ollama-model">Modell</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCustomModelMode(!customModelMode)}
+                      disabled={!settings.ollama.enabled}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Edit3 className="w-3 h-3 mr-1" />
+                      {customModelMode ? 'Auswahl' : 'Manuell'}
+                    </Button>
+                  </div>
+                  
+                  {customModelMode ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={customModel || settings.ollama.model}
+                        onChange={(e) => {
+                          setCustomModel(e.target.value);
+                          updateOllamaConfig({ model: e.target.value });
+                        }}
+                        placeholder="Modellname eingeben (z.B. llama2, custom-model)"
+                        disabled={!settings.ollama.enabled}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Geben Sie den exakten Modellnamen ein. Ideal für Load Balancer Setup.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Select
+                        value={settings.ollama.model}
+                        onValueChange={(model) => updateOllamaConfig({ model })}
+                        disabled={!settings.ollama.enabled}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Modell auswählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableModels.length > 0 ? (
+                            availableModels.map((model) => (
+                              <SelectItem key={model} value={model}>
+                                {model}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <>
+                              <SelectItem value="llama2">llama2</SelectItem>
+                              <SelectItem value="llama2:13b">llama2:13b</SelectItem>
+                              <SelectItem value="codellama">codellama</SelectItem>
+                              <SelectItem value="mistral">mistral</SelectItem>
+                              <SelectItem value="llama3">llama3</SelectItem>
+                              <SelectItem value="llama3:8b">llama3:8b</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {availableModels.length === 0 && settings.ollama.enabled && (
+                        <p className="text-xs text-muted-foreground">
+                          Testen Sie die Verbindung, um verfügbare Modelle zu laden
+                        </p>
                       )}
-                    </SelectContent>
-                  </Select>
-                  {availableModels.length === 0 && settings.ollama.enabled && (
-                    <p className="text-xs text-muted-foreground">
-                      Testen Sie die Verbindung, um verfügbare Modelle zu laden
-                    </p>
+                    </div>
                   )}
                 </div>
 
