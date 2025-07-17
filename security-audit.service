@@ -1,0 +1,42 @@
+[Unit]
+Description=Security Audit Web Application
+Documentation=https://docs.security-audit.local
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=audit
+Group=audit
+WorkingDirectory=/opt/security-audit
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=security-audit
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=WS_PORT=3001
+Environment=DATA_DIR=/opt/security-audit/data
+Environment=SSH_DIR=/opt/security-audit/.ssh
+Environment=OLLAMA_URL=http://127.0.0.1:11434
+
+# Security
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/security-audit
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+
+# Limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
