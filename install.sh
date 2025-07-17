@@ -135,7 +135,8 @@ if command -v ufw &> /dev/null; then
     log_success "Firewall rules added"
 fi
 
-# Create configuration template
+# Create configuration directory and template
+mkdir -p "$INSTALL_DIR/config"
 cat > "$INSTALL_DIR/config/default.json" << EOF
 {
   "server": {
