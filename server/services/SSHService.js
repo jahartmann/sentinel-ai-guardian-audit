@@ -134,7 +134,89 @@ export class SSHService {
       throw new Error('Connection not found');
     }
 
-    this.logger.info('SSH', '📊 Starting comprehensive data collection', { connectionId });
+    this.logger.info('SSH', '📊 Starting comprehensive data collection using universal script', { connectionId });
+
+    try {
+      // First, upload the universal audit script
+      const scriptPath = '/tmp/universal_system_audit.sh';
+      const localScriptPath = './scripts/universal_system_audit.sh';
+      
+      // Read the script content and upload it
+      const fs = await import('fs/promises');
+      const scriptContent = await fs.readFile(localScriptPath, 'utf8');
+      
+      // Create script on remote server
+      await this.executeCommand(connectionId, `cat > ${scriptPath} << 'EOF'\n${scriptContent}\nEOF`);
+      await this.executeCommand(connectionId, `chmod +x ${scriptPath}`);
+      
+      this.logger.info('SSH', '📄 Universal audit script uploaded and made executable', { connectionId });
+      
+      // Execute the comprehensive audit script
+      const auditResult = await this.executeCommand(connectionId, `${scriptPath} /tmp`);
+      
+      if (auditResult.exitCode !== 0) {
+        this.logger.warn('SSH', '⚠️ Audit script completed with warnings', { 
+          exitCode: auditResult.exitCode,
+          stderr: auditResult.stderr 
+        });
+      }
+      
+      // Extract the generated archive filename from script output
+      const archiveMatch = auditResult.stdout.match(/system_audit_.*\.tar\.gz/);
+      const archivePath = archiveMatch ? `/tmp/${archiveMatch[0]}` : null;
+      
+      if (archivePath) {
+        this.logger.info('SSH', '📦 Audit archive created successfully', { archivePath });
+        
+        // Download the archive content (for now, just get basic info about it)
+        const archiveInfo = await this.executeCommand(connectionId, `ls -lh ${archivePath} && tar -tzf ${archivePath} | wc -l`);
+        
+        return {
+          server: {
+            id: connection.server.id,
+            name: connection.server.name,
+            ip: connection.server.ip,
+            hostname: connection.server.hostname,
+            collectionTime: new Date().toISOString()
+          },
+          data: {
+            audit_script_result: {
+              command: `${scriptPath} /tmp`,
+              stdout: auditResult.stdout,
+              stderr: auditResult.stderr,
+              exitCode: auditResult.exitCode,
+              timestamp: auditResult.timestamp
+            },
+            archive_info: {
+              command: `ls -lh ${archivePath} && tar -tzf ${archivePath} | wc -l`,
+              stdout: archiveInfo.stdout,
+              stderr: archiveInfo.stderr,
+              exitCode: archiveInfo.exitCode,
+              timestamp: archiveInfo.timestamp,
+              archivePath
+            }
+          }
+        };
+      } else {
+        // Fallback to individual commands if script fails
+        this.logger.warn('SSH', '⚠️ Falling back to individual command collection');
+        return await this.gatherSystemDataFallback(connectionId);
+      }
+      
+    } catch (error) {
+      this.logger.error('SSH', '❌ Failed to execute universal audit script', { 
+        error: error.message 
+      });
+      
+      // Fallback to individual commands
+      return await this.gatherSystemDataFallback(connectionId);
+    }
+  }
+
+  async gatherSystemDataFallback(connectionId) {
+    const connection = this.connections.get(connectionId);
+    
+    this.logger.info('SSH', '📊 Using fallback data collection method', { connectionId });
 
     // Comprehensive system data collection commands
     const commands = {
@@ -175,7 +257,19 @@ export class SSHService {
       
       // Package management
       installed_packages: 'dpkg -l 2>/dev/null || rpm -qa 2>/dev/null || echo "Package list unavailable"',
-      package_updates: 'apt list --upgradable 2>/dev/null || yum check-update 2>/dev/null || echo "Update check unavailable"'
+      package_updates: 'apt list --upgradable 2>/dev/null || yum check-update 2>/dev/null || echo "Update check unavailable"',
+      
+      // Additional comprehensive data
+      env_variables: 'env',
+      mount_points: 'mount',
+      open_files: 'lsof | head -100',
+      network_connections: 'ss -tuln',
+      kernel_modules: 'lsmod',
+      system_calls: 'cat /proc/sys/kernel/version',
+      
+      // Virtualization detection
+      virtualization: 'systemd-detect-virt 2>/dev/null || echo "Not detected"',
+      dmi_info: 'cat /sys/class/dmi/id/product_name 2>/dev/null || echo "Not available"'
     };
 
     const systemData = {
