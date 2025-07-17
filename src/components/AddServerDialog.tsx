@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Server, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Server as ServerType } from '@/hooks/useServerManagement';
+import type { Server as ServerType } from '@/services/backendApiService';
 
 interface AddServerDialogProps {
-  onAddServer: (server: Omit<ServerType, 'id' | 'status'>) => ServerType;
+  onAddServer: (server: Omit<ServerType, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => Promise<ServerType>;
   onTestConnection: (serverId: string) => Promise<boolean>;
   trigger?: React.ReactNode;
 }
@@ -24,7 +24,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
     port: 22,
     username: '',
     password: '',
-    connectionType: 'ssh' as 'ssh' | 'winrm' | 'snmp'
+    connectionType: 'password' as 'password' | 'key'
   });
   const { toast } = useToast();
 
@@ -43,8 +43,19 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
     setIsTestingConnection(true);
     
     try {
+      // Konvertiere Form-Daten ins Server-Format
+      const serverData: Omit<ServerType, 'id' | 'status' | 'createdAt' | 'updatedAt'> = {
+        name: formData.name,
+        hostname: formData.hostname || formData.ip, // Default zu IP falls kein Hostname
+        ip: formData.ip,
+        port: formData.port,
+        username: formData.username,
+        password: formData.password,
+        connectionType: formData.password ? 'password' : 'key'
+      };
+
       // Erst Server hinzufügen
-      const newServer = onAddServer(formData);
+      const newServer = await onAddServer(serverData);
       
       // Dann Verbindung testen
       const connectionSuccessful = await onTestConnection(newServer.id);
@@ -69,7 +80,7 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
         port: 22,
         username: '',
         password: '',
-        connectionType: 'ssh'
+        connectionType: 'password'
       });
       setOpen(false);
     } catch (error) {
@@ -171,22 +182,10 @@ export const AddServerDialog = ({ onAddServer, onTestConnection, trigger }: AddS
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="connectionType">Verbindungstyp</Label>
-            <Select 
-              value={formData.connectionType} 
-              onValueChange={(value: 'ssh' | 'winrm' | 'snmp') => 
-                setFormData(prev => ({ ...prev, connectionType: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ssh">SSH (Linux/Unix)</SelectItem>
-                <SelectItem value="winrm">WinRM (Windows)</SelectItem>
-                <SelectItem value="snmp">SNMP (Network Devices)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="password">Passwort oder SSH-Key</Label>
+            <p className="text-sm text-muted-foreground">
+              Lassen Sie das Passwort leer, um SSH-Key-Authentifizierung zu verwenden
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
