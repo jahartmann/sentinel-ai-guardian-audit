@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Brain } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
-import { OllamaService } from "@/services/ollamaService";
+import { NewOllamaService } from "@/services/newOllamaService";
 
 export const AIConnectionStatus = () => {
   const { settings } = useSettings();
@@ -16,7 +16,7 @@ export const AIConnectionStatus = () => {
       // Check Ollama connection
       if (settings.ollama.enabled && settings.ollama.serverUrl) {
         try {
-          const ollamaService = new OllamaService(settings.ollama.serverUrl, settings.ollama.model);
+          const ollamaService = new NewOllamaService(settings.ollama.serverUrl, settings.ollama.model);
           const isConnected = await ollamaService.testConnection();
           
           if (isConnected) {
