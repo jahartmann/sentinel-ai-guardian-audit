@@ -216,16 +216,11 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                                 {model}
                               </SelectItem>
                             ))
-                          ) : (
-                            <>
-                              <SelectItem value="llama2">llama2</SelectItem>
-                              <SelectItem value="llama2:13b">llama2:13b</SelectItem>
-                              <SelectItem value="codellama">codellama</SelectItem>
-                              <SelectItem value="mistral">mistral</SelectItem>
-                              <SelectItem value="llama3">llama3</SelectItem>
-                              <SelectItem value="llama3:8b">llama3:8b</SelectItem>
-                            </>
-                          )}
+                           ) : (
+                            <SelectItem value="" disabled>
+                              Testen Sie die Verbindung, um Modelle zu laden
+                            </SelectItem>
+                           )}
                         </SelectContent>
                       </Select>
                       {availableModels.length === 0 && settings.ollama.enabled && (

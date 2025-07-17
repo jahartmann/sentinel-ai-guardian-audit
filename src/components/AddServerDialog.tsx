@@ -21,6 +21,7 @@ export const AddServerDialog = ({ onAddServer, trigger }: AddServerDialogProps) 
     ip: '',
     port: 22,
     username: '',
+    password: '',
     connectionType: 'ssh' as 'ssh' | 'winrm' | 'snmp'
   });
   const { toast } = useToast();
@@ -50,6 +51,7 @@ export const AddServerDialog = ({ onAddServer, trigger }: AddServerDialogProps) 
         ip: '',
         port: 22,
         username: '',
+        password: '',
         connectionType: 'ssh'
       });
       setOpen(false);
@@ -138,23 +140,34 @@ export const AddServerDialog = ({ onAddServer, trigger }: AddServerDialogProps) 
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="connectionType">Verbindungstyp</Label>
-              <Select 
-                value={formData.connectionType} 
-                onValueChange={(value: 'ssh' | 'winrm' | 'snmp') => 
-                  setFormData(prev => ({ ...prev, connectionType: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ssh">SSH (Linux/Unix)</SelectItem>
-                  <SelectItem value="winrm">WinRM (Windows)</SelectItem>
-                  <SelectItem value="snmp">SNMP (Network Devices)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="password">Passwort</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Passwort für Authentifizierung"
+              />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="connectionType">Verbindungstyp</Label>
+            <Select 
+              value={formData.connectionType} 
+              onValueChange={(value: 'ssh' | 'winrm' | 'snmp') => 
+                setFormData(prev => ({ ...prev, connectionType: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ssh">SSH (Linux/Unix)</SelectItem>
+                <SelectItem value="winrm">WinRM (Windows)</SelectItem>
+                <SelectItem value="snmp">SNMP (Network Devices)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

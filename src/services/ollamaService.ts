@@ -26,6 +26,42 @@ export class OllamaService {
     this.model = model;
   }
 
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Ollama connection test failed:', error);
+      return false;
+    }
+  }
+
+  async getAvailableModels(): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/tags`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.models?.map((model: any) => model.name) || [];
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+      return [];
+    }
+  }
+
   async generateResponse(prompt: string, options?: { temperature?: number }): Promise<string> {
     try {
       const request: OllamaRequest = {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface Server {
   id: string;
@@ -7,6 +7,7 @@ export interface Server {
   ip: string;
   port: number;
   username: string;
+  password?: string;
   os?: string;
   status: 'online' | 'offline' | 'warning' | 'critical';
   lastScan?: string;
@@ -34,34 +35,22 @@ export interface AuditResult {
 }
 
 export const useServerManagement = () => {
-  const [servers, setServers] = useState<Server[]>([
-    {
-      id: 'srv-001',
-      name: 'Production Web Server',
-      hostname: 'web-prod-01.company.com',
-      ip: '192.168.1.100',
-      port: 22,
-      username: 'admin',
-      os: 'Ubuntu 22.04 LTS',
-      status: 'online',
-      securityScore: 76,
-      lastScan: '2024-01-15T10:30:00Z',
-      connectionType: 'ssh'
-    },
-    {
-      id: 'srv-002',
-      name: 'Database Server',
-      hostname: 'db-prod-01.company.com',
-      ip: '192.168.1.200',
-      port: 22,
-      username: 'dbadmin',
-      os: 'CentOS 8',
-      status: 'warning',
-      securityScore: 82,
-      lastScan: '2024-01-14T14:20:00Z',
-      connectionType: 'ssh'
+  // Load servers from localStorage
+  const loadServers = (): Server[] => {
+    try {
+      const saved = localStorage.getItem('servers');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-  ]);
+  };
+
+  const [servers, setServers] = useState<Server[]>(loadServers);
+
+  // Save servers to localStorage whenever servers change
+  useEffect(() => {
+    localStorage.setItem('servers', JSON.stringify(servers));
+  }, [servers]);
 
   const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
   const [isScanning, setIsScanning] = useState<string | null>(null);

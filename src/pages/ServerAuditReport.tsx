@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useServerManagement } from "@/hooks/useServerManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,36 @@ const mockAuditData = {
 export default function ServerAuditReport() {
   const { serverId } = useParams();
   const [selectedTab, setSelectedTab] = useState("overview");
+  const { servers, auditResults } = useServerManagement();
+  
+  // Get the actual server data
+  const server = servers.find(s => s.id === serverId);
+  const latestAudit = auditResults.filter(r => r.serverId === serverId).sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  )[0];
+
+  // Use actual server data or fallback to mock data
+  const auditData = server ? {
+    serverId: server.id,
+    serverName: server.name,
+    hostname: server.hostname,
+    ip: server.ip,
+    os: server.os || "Unknown OS",
+    lastScan: server.lastScan || new Date().toISOString(),
+    overallScore: latestAudit?.overallScore || mockAuditData.overallScore,
+    securityScore: latestAudit?.securityScore || mockAuditData.securityScore,
+    performanceScore: latestAudit?.performanceScore || mockAuditData.performanceScore,
+    complianceScore: latestAudit?.complianceScore || mockAuditData.complianceScore,
+    vulnerabilities: mockAuditData.vulnerabilities, // Keep mock data for now
+    findings: latestAudit?.findings.map(f => ({
+      ...f,
+      id: parseInt(f.id) || Math.random(),
+      status: 'open',
+      cve: 'N/A'
+    })) || mockAuditData.findings,
+    systemInfo: mockAuditData.systemInfo, // Keep mock data for now
+    compliance: mockAuditData.compliance // Keep mock data for now
+  } : mockAuditData;
   
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -125,12 +156,12 @@ export default function ServerAuditReport() {
               <h1 className="text-3xl font-bold text-foreground">Server Audit Report</h1>
             </div>
             <p className="text-muted-foreground">
-              {mockAuditData.serverName} • {mockAuditData.hostname}
+              {auditData.serverName} • {auditData.hostname}
             </p>
           </div>
           
           <div className="flex gap-2">
-            <PDFExport auditData={mockAuditData} />
+            <PDFExport auditData={auditData} />
             <Button variant="outline">
               <Clock className="h-4 w-4 mr-2" />
               Schedule Rescan
@@ -145,8 +176,8 @@ export default function ServerAuditReport() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Overall Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{mockAuditData.overallScore}/100</div>
-              <Progress value={mockAuditData.overallScore} className="mt-2" />
+              <div className="text-2xl font-bold text-foreground">{auditData.overallScore}/100</div>
+              <Progress value={auditData.overallScore} className="mt-2" />
             </CardContent>
           </Card>
 
@@ -155,8 +186,8 @@ export default function ServerAuditReport() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Security Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{mockAuditData.securityScore}/100</div>
-              <Progress value={mockAuditData.securityScore} className="mt-2" />
+              <div className="text-2xl font-bold text-foreground">{auditData.securityScore}/100</div>
+              <Progress value={auditData.securityScore} className="mt-2" />
             </CardContent>
           </Card>
 
@@ -165,8 +196,8 @@ export default function ServerAuditReport() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Performance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{mockAuditData.performanceScore}/100</div>
-              <Progress value={mockAuditData.performanceScore} className="mt-2" />
+              <div className="text-2xl font-bold text-foreground">{auditData.performanceScore}/100</div>
+              <Progress value={auditData.performanceScore} className="mt-2" />
             </CardContent>
           </Card>
 
@@ -175,8 +206,8 @@ export default function ServerAuditReport() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Compliance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{mockAuditData.complianceScore}/100</div>
-              <Progress value={mockAuditData.complianceScore} className="mt-2" />
+              <div className="text-2xl font-bold text-foreground">{auditData.complianceScore}/100</div>
+              <Progress value={auditData.complianceScore} className="mt-2" />
             </CardContent>
           </Card>
         </div>
@@ -192,23 +223,23 @@ export default function ServerAuditReport() {
           <CardContent>
             <div className="flex gap-6">
               <div className="flex items-center gap-2">
-                <Badge variant="destructive">{mockAuditData.vulnerabilities.critical}</Badge>
+                <Badge variant="destructive">{auditData.vulnerabilities.critical}</Badge>
                 <span className="text-sm text-muted-foreground">Critical</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="destructive">{mockAuditData.vulnerabilities.high}</Badge>
+                <Badge variant="destructive">{auditData.vulnerabilities.high}</Badge>
                 <span className="text-sm text-muted-foreground">High</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary">{mockAuditData.vulnerabilities.medium}</Badge>
+                <Badge variant="secondary">{auditData.vulnerabilities.medium}</Badge>
                 <span className="text-sm text-muted-foreground">Medium</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">{mockAuditData.vulnerabilities.low}</Badge>
+                <Badge variant="outline">{auditData.vulnerabilities.low}</Badge>
                 <span className="text-sm text-muted-foreground">Low</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline">{mockAuditData.vulnerabilities.info}</Badge>
+                <Badge variant="outline">{auditData.vulnerabilities.info}</Badge>
                 <span className="text-sm text-muted-foreground">Info</span>
               </div>
             </div>
@@ -237,23 +268,23 @@ export default function ServerAuditReport() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Operating System:</span>
-                    <span className="font-medium">{mockAuditData.os}</span>
+                    <span className="font-medium">{auditData.os}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Uptime:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.uptime}</span>
+                    <span className="font-medium">{auditData.systemInfo.uptime}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Load Average:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.loadAverage}</span>
+                    <span className="font-medium">{auditData.systemInfo.loadAverage}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Memory Usage:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.memoryUsage}</span>
+                    <span className="font-medium">{auditData.systemInfo.memoryUsage}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Disk Usage:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.diskUsage}</span>
+                    <span className="font-medium">{auditData.systemInfo.diskUsage}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -268,11 +299,11 @@ export default function ServerAuditReport() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Active Connections:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.networkConnections}</span>
+                    <span className="font-medium">{auditData.systemInfo.networkConnections}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Running Processes:</span>
-                    <span className="font-medium">{mockAuditData.systemInfo.runningProcesses}</span>
+                    <span className="font-medium">{auditData.systemInfo.runningProcesses}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -286,7 +317,7 @@ export default function ServerAuditReport() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockAuditData.findings.filter(f => f.category === "Security").map((finding) => (
+                  {auditData.findings.filter(f => f.category === "Security").map((finding) => (
                     <div key={finding.id} className="p-4 border border-border/50 rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -301,7 +332,7 @@ export default function ServerAuditReport() {
                       <div className="pt-2 border-t border-border/30">
                         <p className="text-sm"><strong>Recommendation:</strong> {finding.recommendation}</p>
                       </div>
-                      {finding.cve !== "N/A" && (
+                      {finding.cve && finding.cve !== "N/A" && (
                         <div className="text-xs text-muted-foreground">
                           CVE: {finding.cve}
                         </div>
@@ -320,7 +351,7 @@ export default function ServerAuditReport() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockAuditData.findings.filter(f => f.category === "Performance").map((finding) => (
+                  {auditData.findings.filter(f => f.category === "Performance").map((finding) => (
                     <div key={finding.id} className="p-4 border border-border/50 rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -352,30 +383,30 @@ export default function ServerAuditReport() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span>CIS Controls</span>
-                      <span className="font-semibold">{mockAuditData.compliance.cis}%</span>
+                      <span className="font-semibold">{auditData.compliance.cis}%</span>
                     </div>
-                    <Progress value={mockAuditData.compliance.cis} />
+                    <Progress value={auditData.compliance.cis} />
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span>NIST Framework</span>
-                      <span className="font-semibold">{mockAuditData.compliance.nist}%</span>
+                      <span className="font-semibold">{auditData.compliance.nist}%</span>
                     </div>
-                    <Progress value={mockAuditData.compliance.nist} />
+                    <Progress value={auditData.compliance.nist} />
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span>ISO 27001</span>
-                      <span className="font-semibold">{mockAuditData.compliance.iso27001}%</span>
+                      <span className="font-semibold">{auditData.compliance.iso27001}%</span>
                     </div>
-                    <Progress value={mockAuditData.compliance.iso27001} />
+                    <Progress value={auditData.compliance.iso27001} />
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span>PCI DSS</span>
-                      <span className="font-semibold">{mockAuditData.compliance.pci}%</span>
+                      <span className="font-semibold">{auditData.compliance.pci}%</span>
                     </div>
-                    <Progress value={mockAuditData.compliance.pci} />
+                    <Progress value={auditData.compliance.pci} />
                   </div>
                 </div>
               </CardContent>
@@ -389,7 +420,7 @@ export default function ServerAuditReport() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockAuditData.findings.map((finding) => (
+                  {auditData.findings.map((finding) => (
                     <div key={finding.id} className="p-4 border border-border/50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{finding.title}</h4>
@@ -399,7 +430,7 @@ export default function ServerAuditReport() {
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">{finding.recommendation}</p>
                       <div className="text-xs text-muted-foreground">
-                        Status: <span className="capitalize">{finding.status}</span>
+                        Status: <span className="capitalize">{finding.status || 'open'}</span>
                       </div>
                     </div>
                   ))}
