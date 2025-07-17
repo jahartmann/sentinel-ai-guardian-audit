@@ -96,14 +96,14 @@ export const useServerManagement = () => {
       const { RealSSHService } = await import('@/services/realSSHService');
       const sshService = new RealSSHService();
       
-      // Echter SSH-Verbindungstest mit Schlüsselaustausch
+      // Ehrlicher Verbindungstest - zeigt was wirklich möglich ist
       const connection = await sshService.connect(server);
       
       if (connection.status === 'connected') {
-        console.log(`Connection successful to ${server.hostname}`);
+        console.log(`Basic connectivity successful to ${server.hostname}`);
         updateServerStatus(serverId, 'online');
         
-        // Verbindung ordnungsgemäß trennen
+        // Disconnect
         await sshService.disconnect(connection.id);
         return true;
       } else {
