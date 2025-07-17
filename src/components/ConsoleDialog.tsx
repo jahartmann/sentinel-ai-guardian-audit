@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Terminal, Send, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { consoleService, type ConsoleMessage } from '@/services/consoleService';
 import type { Server } from '@/hooks/useServerManagement';
 
 interface ConsoleDialogProps {
@@ -12,11 +13,6 @@ interface ConsoleDialogProps {
   trigger?: React.ReactNode;
 }
 
-interface ConsoleMessage {
-  type: 'command' | 'output' | 'error' | 'system';
-  content: string;
-  timestamp: string;
-}
 
 export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
   const [open, setOpen] = useState(false);
@@ -24,17 +20,28 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [command, setCommand] = useState('');
   const [messages, setMessages] = useState<ConsoleMessage[]>([]);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const addMessage = (type: ConsoleMessage['type'], content: string) => {
-    const message: ConsoleMessage = {
-      type,
-      content,
-      timestamp: new Date().toLocaleTimeString('de-DE')
-    };
-    setMessages(prev => [...prev, message]);
-  };
+  useEffect(() => {
+    if (connectionId) {
+      // Lade existierende Messages
+      const connection = consoleService.getConnection(connectionId);
+      if (connection) {
+        setMessages(connection.messages);
+      }
+
+      // Höre auf neue Messages
+      consoleService.onMessage(connectionId, (message) => {
+        setMessages(prev => [...prev, message]);
+      });
+
+      return () => {
+        consoleService.offMessage(connectionId);
+      };
+    }
+  }, [connectionId]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -44,26 +51,17 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
 
   const handleConnect = async () => {
     setIsConnecting(true);
-    const target = server.hostname ? `${server.username}@${server.hostname}` : `${server.username}@${server.ip}`;
-    addMessage('system', `Establishing SSH connection to ${target}:${server.port}...`);
     
     try {
-      // Use the IP-based SSH service for console connection (Python-style)
-      const { ipSSHService } = await import('@/services/ipBasedSSHService');
-      const connection = await ipSSHService.connect(server);
-      
+      const connId = await consoleService.connect(server);
+      setConnectionId(connId);
       setIsConnected(true);
-      addMessage('system', `✅ SSH connection established to ${server.name}`);
-      addMessage('system', `Welcome to ${server.hostname || server.ip}`);
-      addMessage('output', `Last login: ${new Date().toLocaleString('de-DE')}`);
-      addMessage('output', `${server.username}@${server.hostname || server.ip}:~$`);
       
       toast({
         title: "Console verbunden",
         description: `SSH-Verbindung zu ${server.name} erfolgreich hergestellt.`
       });
     } catch (error) {
-      addMessage('error', `❌ SSH connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast({
         title: "SSH-Verbindungsfehler",
         description: "Konnte keine SSH-Verbindung zur Server-Console herstellen.",
@@ -75,8 +73,11 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
   };
 
   const handleDisconnect = () => {
+    if (connectionId) {
+      consoleService.disconnect(connectionId);
+    }
     setIsConnected(false);
-    addMessage('system', `Disconnected from ${server.name}`);
+    setConnectionId(null);
     toast({
       title: "Console getrennt",
       description: `Verbindung zu ${server.name} beendet.`
@@ -84,43 +85,19 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
   };
 
   const handleSendCommand = async () => {
-    if (!command.trim() || !isConnected) return;
+    if (!command.trim() || !isConnected || !connectionId) return;
 
     const cmd = command.trim();
     setCommand('');
     
-    addMessage('command', `${server.username}@${server.hostname || server.ip}:~$ ${cmd}`);
-    
-    // Simulate command execution
     try {
-      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
-      
-      // Mock responses for common commands
-      if (cmd === 'ls') {
-        addMessage('output', 'bin  etc  home  opt  root  tmp  usr  var');
-      } else if (cmd === 'pwd') {
-        addMessage('output', `/home/${server.username}`);
-      } else if (cmd === 'whoami') {
-        addMessage('output', server.username);
-      } else if (cmd === 'uname -a') {
-        addMessage('output', `Linux ${server.hostname || server.ip} 5.4.0-74-generic #83-Ubuntu SMP Sat May 8 02:35:39 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux`);
-      } else if (cmd === 'df -h') {
-        addMessage('output', 'Filesystem      Size  Used Avail Use% Mounted on');
-        addMessage('output', '/dev/sda1        50G   15G   33G  32% /');
-        addMessage('output', 'tmpfs           2.0G     0  2.0G   0% /dev/shm');
-      } else if (cmd.startsWith('cat ') || cmd.startsWith('less ') || cmd.startsWith('more ')) {
-        addMessage('output', 'File content would be displayed here...');
-      } else if (cmd === 'exit') {
-        handleDisconnect();
-        return;
-      } else {
-        addMessage('output', `Command executed: ${cmd}`);
-        addMessage('output', 'Output would be displayed here in a real implementation.');
-      }
-      
-      addMessage('output', `${server.username}@${server.hostname || server.ip}:~$`);
+      await consoleService.executeCommand(connectionId, cmd);
     } catch (error) {
-      addMessage('error', `Command failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast({
+        title: "Befehlsfehler",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive"
+      });
     }
   };
 
@@ -131,7 +108,7 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
   };
 
   const handleClose = () => {
-    if (isConnected) {
+    if (isConnected && connectionId) {
       handleDisconnect();
     }
     setMessages([]);
@@ -241,7 +218,7 @@ export const ConsoleDialog = ({ server, trigger }: ConsoleDialogProps) => {
               </div>
             )}
             <div className="text-xs text-muted-foreground">
-              Hinweis: Dies ist eine Demo-Console. In der echten Implementierung würde eine WebSocket-Verbindung zum Server hergestellt.
+              Echte SSH-Verbindung über WebSocket. Bei Verbindungsproblemen wird Demo-Modus verwendet.
             </div>
           </div>
         </div>

@@ -29,50 +29,22 @@ export class OllamaService {
 
   async testConnection(): Promise<boolean> {
     try {
-      let apiUrl = this.baseUrl;
-      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-        apiUrl = `http://${apiUrl}`;
-      }
+      // Verwende Backend-Proxy für Ollama
+      const { backendService } = await import('@/services/backendService');
+      const response = await backendService.getOllamaStatus();
       
-      logger.ollamaConnect(apiUrl);
-      console.log(`Testing Ollama connection to: ${apiUrl}`);
-      
-      // CORS-Problem lösen: Verwende einen Proxy oder fetch mit no-cors
-      const response = await fetch(`${apiUrl}/api/tags`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors', // Versuche CORS zuerst
-        credentials: 'omit',
-        signal: AbortSignal.timeout(5000) // 5 Sekunden Timeout
-      });
-      
-      if (response.ok) {
-        logger.ollamaConnectSuccess(apiUrl);
-        console.log('Ollama connection successful');
+      if (response.success && (response.data as any)?.success) {
+        logger.ollamaConnectSuccess(this.baseUrl);
+        console.log('Ollama connection successful via backend');
         return true;
       } else {
-        logger.ollamaConnectFailed(apiUrl, new Error(`${response.status} ${response.statusText}`));
-        console.log(`Ollama connection failed: ${response.status} ${response.statusText}`);
+        logger.ollamaConnectFailed(this.baseUrl, new Error(response.error || 'Connection failed'));
+        console.log('Ollama connection failed:', response.error);
         return false;
       }
     } catch (error) {
-      let currentApiUrl = this.baseUrl;
-      if (!currentApiUrl.startsWith('http://') && !currentApiUrl.startsWith('https://')) {
-        currentApiUrl = `http://${currentApiUrl}`;
-      }
-      logger.error('ollama', 'Ollama connection test failed', { url: currentApiUrl }, error as Error);
+      logger.error('ollama', 'Ollama connection test failed', { url: this.baseUrl }, error as Error);
       console.error('Ollama connection test failed:', error);
-      
-      // Fallback: Teste ob Ollama überhaupt läuft (auch mit CORS-Fehler)
-      if (error instanceof Error && error.message.includes('Failed to fetch')) {
-        console.log('CORS-Fehler erkannt - Ollama läuft möglicherweise, aber CORS ist blockiert');
-        
-        // Versuche alternative Methode - Image-Loading-Trick
-        return this.testOllamaWithImageTrick();
-      }
-      
       return false;
     }
   }
@@ -108,32 +80,15 @@ export class OllamaService {
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      let apiUrl = this.baseUrl;
-      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-        apiUrl = `http://${apiUrl}`;
+      const { backendService } = await import('@/services/backendService');
+      const response = await backendService.getOllamaStatus();
+      
+      if (response.success && (response.data as any)?.models) {
+        console.log(`Found ${(response.data as any).models.length} models:`, (response.data as any).models);
+        return (response.data as any).models.map((model: any) => model.name || model);
       }
       
-      console.log(`Fetching models from: ${apiUrl}`);
-      
-      const response = await fetch(`${apiUrl}/api/tags`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        mode: 'cors',
-        credentials: 'omit'
-      });
-
-      if (!response.ok) {
-        console.error(`Ollama API error: ${response.status} ${response.statusText}`);
-        return [];
-      }
-
-      const data = await response.json();
-      const models = data.models?.map((model: any) => model.name) || [];
-      console.log(`Found ${models.length} models:`, models);
-      return models;
+      return [];
     } catch (error) {
       console.error('Failed to fetch models:', error);
       return [];
@@ -142,40 +97,22 @@ export class OllamaService {
 
   async generateResponse(prompt: string, options?: { temperature?: number }): Promise<string> {
     try {
-      let apiUrl = this.baseUrl;
-      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-        apiUrl = `http://${apiUrl}`;
-      }
+      const { backendService } = await import('@/services/backendService');
       
-      const request: OllamaRequest = {
-        model: this.model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: options?.temperature || 0.7,
-          top_p: 0.9,
-          top_k: 40
-        }
-      };
-
+      const messages = [
+        { role: 'user', content: prompt }
+      ];
+      
       console.log(`Generating response with model: ${this.model}`);
       
-      const response = await fetch(`${apiUrl}/api/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify(request)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+      const response = await backendService.sendOllamaChat(this.model, messages);
+      
+      if (response.success && (response.data as any)?.message?.content) {
+        console.log('Ollama response generated successfully');
+        return (response.data as any).message.content;
+      } else {
+        throw new Error(response.error || 'No response from Ollama');
       }
-
-      const data: OllamaResponse = await response.json();
-      console.log('Ollama response generated successfully');
-      return data.response;
     } catch (error) {
       console.error('Ollama generation failed:', error);
       throw new Error(`Ollama-Generierung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
