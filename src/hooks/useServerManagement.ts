@@ -84,25 +84,36 @@ export const useServerManagement = () => {
 
   const testConnection = useCallback(async (serverId: string): Promise<boolean> => {
     const server = servers.find(s => s.id === serverId);
-    if (!server) return false;
+    if (!server) {
+      console.error(`Server mit ID ${serverId} nicht gefunden`);
+      return false;
+    }
 
+    console.log(`Testing connection to ${server.hostname} (${server.ip}:${server.port})`);
     updateServerStatus(serverId, 'warning');
     
     try {
       const { RealSSHService } = await import('@/services/realSSHService');
       const sshService = new RealSSHService();
+      
+      // Echter SSH-Verbindungstest mit Schlüsselaustausch
       const connection = await sshService.connect(server);
       
       if (connection.status === 'connected') {
+        console.log(`Connection successful to ${server.hostname}`);
         updateServerStatus(serverId, 'online');
+        
+        // Verbindung ordnungsgemäß trennen
         await sshService.disconnect(connection.id);
         return true;
       } else {
+        console.log(`Connection failed to ${server.hostname}: ${connection.error}`);
         updateServerStatus(serverId, 'critical');
         return false;
       }
     } catch (error) {
-      console.error('Connection test failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Verbindungsfehler';
+      console.error(`Connection test failed for ${server.hostname}:`, errorMessage);
       updateServerStatus(serverId, 'critical');
       return false;
     }
@@ -110,8 +121,12 @@ export const useServerManagement = () => {
 
   const startAudit = useCallback(async (serverId: string) => {
     const server = servers.find(s => s.id === serverId);
-    if (!server || isScanning) return null;
+    if (!server || isScanning) {
+      console.error('Server nicht gefunden oder Audit bereits aktiv');
+      return null;
+    }
 
+    console.log(`Starting comprehensive audit for ${server.hostname}`);
     setIsScanning(serverId);
     
     const auditId = `audit-${Date.now()}`;
@@ -130,16 +145,35 @@ export const useServerManagement = () => {
     setAuditResults(prev => [...prev, newAudit]);
 
     try {
+      // 1. Prüfe ob KI-Modell verfügbar ist
+      const aiService = await checkAIAvailability();
+      if (!aiService) {
+        throw new Error('Kein KI-Modell verfügbar. Bitte konfigurieren Sie Ollama oder ein anderes KI-Modell in den Einstellungen.');
+      }
+
+      // 2. Stelle SSH-Verbindung her
       const { RealSSHService } = await import('@/services/realSSHService');
       const sshService = new RealSSHService();
       const connection = await sshService.connect(server);
       
       if (connection.status !== 'connected') {
-        throw new Error(connection.error || 'Failed to connect to server');
+        throw new Error(connection.error || 'SSH-Verbindung konnte nicht hergestellt werden');
       }
 
-      // Perform real security audit with actual data
+      console.log('SSH connection established, gathering system data...');
+
+      // 3. Sammle umfassende Systemdaten
+      const systemInfo = await sshService.gatherSystemInfo(connection.id);
+      
+      console.log('System data collected, performing AI-powered security analysis...');
+
+      // 4. Führe KI-gestützte Sicherheitsanalyse durch
       const securityAudit = await sshService.performSecurityAudit(connection.id);
+      
+      console.log('Security audit completed, generating AI recommendations...');
+
+      // 5. Lasse KI die Ergebnisse analysieren und Empfehlungen generieren
+      const aiAnalysis = await aiService.analyzeSecurityFindings(securityAudit.findings);
       
       const completedAudit: AuditResult = {
         ...newAudit,
@@ -148,20 +182,24 @@ export const useServerManagement = () => {
         securityScore: securityAudit.scores.security,
         performanceScore: securityAudit.scores.performance,
         complianceScore: securityAudit.scores.compliance,
-        findings: securityAudit.findings
+        findings: securityAudit.findings.map(finding => ({
+          ...finding,
+          aiAnalysis // Erweitere Befunde um KI-Analyse
+        }))
       };
 
       setAuditResults(prev => prev.map(audit => 
         audit.id === auditId ? completedAudit : audit
       ));
       
-      // Update server's last scan time and security score
+      // 6. Aktualisiere Server-Daten
       setServers(prev => prev.map(s => 
         s.id === serverId 
           ? { 
               ...s, 
               lastScan: completedAudit.timestamp,
-              securityScore: completedAudit.securityScore
+              securityScore: completedAudit.securityScore,
+              os: systemInfo.os // Aktualisiere erkanntes OS
             } 
           : s
       ));
@@ -169,20 +207,24 @@ export const useServerManagement = () => {
       await sshService.disconnect(connection.id);
       setIsScanning(null);
       
+      console.log(`Audit completed for ${server.hostname} with score: ${completedAudit.overallScore}`);
       return completedAudit;
+      
     } catch (error) {
       console.error('Audit failed:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Audit-Fehler';
       
       const failedAudit: AuditResult = {
         ...newAudit,
         status: 'failed',
         findings: [{
-          id: 'connection-error',
-          title: 'Verbindungsfehler',
+          id: 'audit-error',
+          title: 'Audit-Fehler',
           severity: 'critical',
-          category: 'Connection',
-          description: error instanceof Error ? error.message : 'Unbekannter Fehler beim Verbinden zum Server',
-          recommendation: 'Überprüfen Sie IP-Adresse, Port, Benutzername und Passwort. Stellen Sie sicher, dass SSH aktiviert ist.'
+          category: 'System',
+          description: errorMessage,
+          recommendation: getErrorRecommendation(errorMessage)
         }]
       };
 
@@ -194,6 +236,47 @@ export const useServerManagement = () => {
       throw error;
     }
   }, [servers, isScanning]);
+
+  const checkAIAvailability = async () => {
+    try {
+      // Prüfe Ollama
+      const { createOllamaService } = await import('@/services/ollamaService');
+      const { useSettings } = await import('@/hooks/useSettings');
+      
+      // Da wir nicht in einem React-Kontext sind, müssen wir anders auf Settings zugreifen
+      const savedSettings = localStorage.getItem('settings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        if (settings.ollama?.enabled && settings.ollama?.serverUrl) {
+          const ollamaService = createOllamaService(settings);
+          if (ollamaService && await ollamaService.testConnection()) {
+            return ollamaService;
+          }
+        }
+      }
+      
+      // Prüfe andere KI-Services falls konfiguriert
+      // TODO: Implementiere andere KI-Services (OpenAI, Claude, etc.)
+      
+      return null;
+    } catch (error) {
+      console.error('AI availability check failed:', error);
+      return null;
+    }
+  };
+
+  const getErrorRecommendation = (errorMessage: string): string => {
+    if (errorMessage.includes('Kein KI-Modell')) {
+      return 'Konfigurieren Sie Ollama oder ein anderes KI-Modell in den Einstellungen. Stellen Sie sicher, dass der Ollama-Server läuft und erreichbar ist.';
+    }
+    if (errorMessage.includes('SSH-Verbindung')) {
+      return 'Überprüfen Sie die SSH-Konfiguration des Servers. Stellen Sie sicher, dass SSH aktiviert ist und der Port korrekt ist.';
+    }
+    if (errorMessage.includes('nicht erreichbar')) {
+      return 'Überprüfen Sie die Netzwerkverbindung und Firewall-Einstellungen. Der Server muss über das Netzwerk erreichbar sein.';
+    }
+    return 'Überprüfen Sie die Server-Konfiguration und Netzwerkverbindung. Stellen Sie sicher, dass alle erforderlichen Services laufen.';
+  };
 
   const startNetworkScan = useCallback(async () => {
     try {

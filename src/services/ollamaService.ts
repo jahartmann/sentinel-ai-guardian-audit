@@ -28,18 +28,33 @@ export class OllamaService {
 
   async testConnection(): Promise<boolean> {
     try {
-      // Ensure URL has proper protocol
-      const apiUrl = this.baseUrl.startsWith('http') ? this.baseUrl : `http://${this.baseUrl}`;
+      // Ensure URL has proper protocol and handle CORS
+      let apiUrl = this.baseUrl;
+      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+        apiUrl = `http://${apiUrl}`;
+      }
+      
+      console.log(`Testing Ollama connection to: ${apiUrl}`);
       
       const response = await fetch(`${apiUrl}/api/tags`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
         },
         mode: 'cors',
         credentials: 'omit'
       });
-      return response.ok;
+      
+      if (response.ok) {
+        console.log('Ollama connection successful');
+        return true;
+      } else {
+        console.log(`Ollama connection failed: ${response.status} ${response.statusText}`);
+        return false;
+      }
     } catch (error) {
       console.error('Ollama connection test failed:', error);
       return false;
@@ -48,24 +63,32 @@ export class OllamaService {
 
   async getAvailableModels(): Promise<string[]> {
     try {
-      // Ensure URL has proper protocol
-      const apiUrl = this.baseUrl.startsWith('http') ? this.baseUrl : `http://${this.baseUrl}`;
+      let apiUrl = this.baseUrl;
+      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+        apiUrl = `http://${apiUrl}`;
+      }
+      
+      console.log(`Fetching models from: ${apiUrl}`);
       
       const response = await fetch(`${apiUrl}/api/tags`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
         },
         mode: 'cors',
         credentials: 'omit'
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        console.error(`Ollama API error: ${response.status} ${response.statusText}`);
+        return [];
       }
 
       const data = await response.json();
-      return data.models?.map((model: any) => model.name) || [];
+      const models = data.models?.map((model: any) => model.name) || [];
+      console.log(`Found ${models.length} models:`, models);
+      return models;
     } catch (error) {
       console.error('Failed to fetch models:', error);
       return [];
@@ -74,6 +97,11 @@ export class OllamaService {
 
   async generateResponse(prompt: string, options?: { temperature?: number }): Promise<string> {
     try {
+      let apiUrl = this.baseUrl;
+      if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+        apiUrl = `http://${apiUrl}`;
+      }
+      
       const request: OllamaRequest = {
         model: this.model,
         prompt,
@@ -85,10 +113,13 @@ export class OllamaService {
         }
       };
 
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
+      console.log(`Generating response with model: ${this.model}`);
+      
+      const response = await fetch(`${apiUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
         },
         body: JSON.stringify(request)
       });
@@ -98,10 +129,11 @@ export class OllamaService {
       }
 
       const data: OllamaResponse = await response.json();
+      console.log('Ollama response generated successfully');
       return data.response;
     } catch (error) {
       console.error('Ollama generation failed:', error);
-      throw new Error('Failed to generate response from Ollama');
+      throw new Error(`Ollama-Generierung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
     }
   }
 
