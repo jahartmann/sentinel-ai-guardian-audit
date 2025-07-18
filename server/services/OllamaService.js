@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export class OllamaService {
-  constructor(logger, baseUrl = 'http://192.168.0.48/api') {
+  constructor(logger, baseUrl = 'http://192.168.0.48:80') {
     this.logger = logger;
     this.baseUrl = baseUrl;
     this.logger.info('Ollama', '🤖 Ollama service initialized', { baseUrl });
@@ -11,7 +11,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', '🔄 Testing connection to Ollama');
       
-      const response = await axios.get(`${this.baseUrl}/tags`, {
+      const response = await axios.get(`${this.baseUrl}/api/tags`, {
         timeout: 5000,
         headers: {
           'Content-Type': 'application/json'
@@ -48,7 +48,7 @@ export class OllamaService {
 
   async getAvailableModels() {
     try {
-      const response = await axios.get(`${this.baseUrl}/tags`, {
+      const response = await axios.get(`${this.baseUrl}/api/tags`, {
         timeout: 5000
       });
 
@@ -71,7 +71,7 @@ export class OllamaService {
 
   async getRunningModels() {
     try {
-      const response = await axios.get(`${this.baseUrl}/ps`, {
+      const response = await axios.get(`${this.baseUrl}/api/ps`, {
         timeout: 5000
       });
 
@@ -95,7 +95,7 @@ export class OllamaService {
 
   async getModelInfo(modelName) {
     try {
-      const response = await axios.post(`${this.baseUrl}/show`, {
+      const response = await axios.post(`${this.baseUrl}/api/show`, {
         model: modelName
       }, {
         timeout: 10000,
@@ -126,7 +126,7 @@ export class OllamaService {
         messageCount: messages.length
       });
 
-      const response = await axios.post(`${this.baseUrl}/chat`, {
+      const response = await axios.post(`${this.baseUrl}/api/chat`, {
         model,
         messages,
         stream: false,
@@ -173,7 +173,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', `🎯 Generating response with ${model}`);
 
-      const response = await axios.post(`${this.baseUrl}/generate`, {
+      const response = await axios.post(`${this.baseUrl}/api/generate`, {
         model,
         prompt,
         stream: false,
@@ -218,7 +218,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', `🔢 Generating embeddings with ${model}`);
 
-      const response = await axios.post(`${this.baseUrl}/embeddings`, {
+      const response = await axios.post(`${this.baseUrl}/api/embeddings`, {
         model,
         prompt
       }, {
@@ -243,13 +243,97 @@ export class OllamaService {
     }
   }
 
+  // Model Management Methods
+  async pullModel(modelName) {
+    try {
+      this.logger.info('Ollama', `⬇️ Pulling model: ${modelName}`);
+
+      const response = await axios.post(`${this.baseUrl}/api/pull`, {
+        model: modelName
+      }, {
+        timeout: 300000, // 5 minutes for model downloads
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Model pulled successfully', { model: modelName });
+
+      return {
+        success: true,
+        model: modelName,
+        status: response.data.status
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Failed to pull model ${modelName}: ${error.message}`);
+      throw new Error(`Failed to pull model: ${error.message}`);
+    }
+  }
+
+  async deleteModel(modelName) {
+    try {
+      this.logger.info('Ollama', `🗑️ Deleting model: ${modelName}`);
+
+      const response = await axios.delete(`${this.baseUrl}/api/delete`, {
+        data: {
+          model: modelName
+        },
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Model deleted successfully', { model: modelName });
+
+      return {
+        success: true,
+        model: modelName,
+        deleted: true
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Failed to delete model ${modelName}: ${error.message}`);
+      throw new Error(`Failed to delete model: ${error.message}`);
+    }
+  }
+
+  async copyModel(source, destination) {
+    try {
+      this.logger.info('Ollama', `📋 Copying model from ${source} to ${destination}`);
+
+      const response = await axios.post(`${this.baseUrl}/api/copy`, {
+        source,
+        destination
+      }, {
+        timeout: 60000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Model copied successfully', { source, destination });
+
+      return {
+        success: true,
+        source,
+        destination,
+        copied: true
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Failed to copy model: ${error.message}`);
+      throw new Error(`Failed to copy model: ${error.message}`);
+    }
+  }
+
   async loadModel(modelName) {
     try {
       this.logger.info('Ollama', `📥 Loading model: ${modelName}`);
 
-      const response = await axios.post(`${this.baseUrl}/generate`, {
+      // Load model by making a generate request with empty prompt
+      const response = await axios.post(`${this.baseUrl}/api/generate`, {
         model: modelName,
-        prompt: ""
+        prompt: "",
+        keep_alive: 300 // Keep loaded for 5 minutes
       }, {
         timeout: 60000,
         headers: {
@@ -274,7 +358,7 @@ export class OllamaService {
     try {
       this.logger.info('Ollama', `📤 Unloading model: ${modelName}`);
 
-      const response = await axios.post(`${this.baseUrl}/generate`, {
+      const response = await axios.post(`${this.baseUrl}/api/generate`, {
         model: modelName,
         prompt: "",
         keep_alive: 0
@@ -300,7 +384,7 @@ export class OllamaService {
 
   async getVersion() {
     try {
-      const response = await axios.get(`${this.baseUrl.replace('/api', '')}/api/version`, {
+      const response = await axios.get(`${this.baseUrl}/api/version`, {
         timeout: 5000
       });
 
@@ -396,4 +480,5 @@ Antworte auf Deutsch mit konkreten, umsetzbaren Vorschlägen.`;
       };
     }
   }
+}
 }
