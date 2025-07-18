@@ -27,8 +27,8 @@ const io = new SocketIOServer(server, {
 });
 
 // Configuration
-const PORT = process.env.PORT || 3001;
-const WS_PORT = process.env.WS_PORT || 5001;
+const PORT = process.env.PORT || 3000;
+const WS_PORT = process.env.WS_PORT || 3000;
 
 // Initialize services
 const logger = new Logger();

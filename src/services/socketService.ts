@@ -33,10 +33,10 @@ class SocketService {
     }
 
     this.isConnecting = true;
-    // Backend läuft auf Port 3001, nicht auf dem Frontend Port
+    // Backend läuft auf Port 3000, nicht auf dem Frontend Port
     const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-      ? 'http://localhost:3001' 
-      : `http://${window.location.hostname}:3001`;
+      ? 'http://localhost:3000' 
+      : `http://${window.location.hostname}:3000`;
     
     logger.info('system', `🔌 Connecting to WebSocket server: ${serverUrl}`);
 

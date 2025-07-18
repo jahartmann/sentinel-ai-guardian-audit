@@ -55,10 +55,10 @@ class BackendApiService {
   private baseUrl: string;
 
   constructor() {
-    // Backend läuft auf Port 3001, Frontend auf Port 5000
+    // Backend läuft auf Port 3000, Frontend auf Port 5000
     this.baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-      ? 'http://localhost:3001' 
-      : `http://${window.location.hostname}:3001`;
+      ? 'http://localhost:3000' 
+      : `http://${window.location.hostname}:3000`;
   }
 
   public async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
