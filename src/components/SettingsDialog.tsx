@@ -175,7 +175,7 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="ollama-model">Modell</Label>
+                    <Label htmlFor="ollama-model">KI-Modell für Audit-Berichte</Label>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -196,11 +196,11 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                           setCustomModel(e.target.value);
                           updateOllamaConfig({ model: e.target.value });
                         }}
-                        placeholder="Modellname eingeben (z.B. llama2, custom-model)"
+                        placeholder="Modellname eingeben (z.B. llama3.1:8b, custom-model)"
                         disabled={!settings.ollama.enabled}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Geben Sie den exakten Modellnamen ein. Ideal für Load Balancer Setup.
+                        Geben Sie den exakten Modellnamen ein. Empfohlen: llama3.1:8b für Load Balancer Setup.
                       </p>
                     </div>
                   ) : (
@@ -211,7 +211,7 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                         disabled={!settings.ollama.enabled}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Modell auswählen" />
+                          <SelectValue placeholder="Modell für Audit-Berichte auswählen" />
                         </SelectTrigger>
                         <SelectContent>
                           {availableModels.length > 0 ? (
@@ -231,6 +231,11 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
                         <p className="text-xs text-muted-foreground">
                           Testen Sie die Verbindung, um verfügbare Modelle zu laden
                         </p>
+                      )}
+                      {settings.ollama.model && (
+                        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                          ✅ Gewähltes Modell: <strong>{settings.ollama.model}</strong> wird für KI-Audit-Berichte verwendet
+                        </div>
                       )}
                     </div>
                   )}

@@ -131,7 +131,7 @@ export const useServerManagementBackend = () => {
   const markKeyDeployed = (serverId: string) => {
     setServers(prev => prev.map(s => 
       s.id === serverId 
-        ? { ...s, keyDeployed: true }
+        ? { ...s, keyDeployed: true, status: 'connected' as const }
         : s
     ));
     logger.info('ssh', `🔑 SSH key marked as deployed: ${serverId}`);

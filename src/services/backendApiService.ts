@@ -16,7 +16,7 @@ export interface Server {
   password?: string;
   privateKeyPath?: string;
   connectionType: 'password' | 'key';
-  status: 'online' | 'offline' | 'warning' | 'critical';
+  status: 'online' | 'offline' | 'warning' | 'critical' | 'connected';
   securityScore?: number;
   lastAudit?: string;
   createdAt: string;

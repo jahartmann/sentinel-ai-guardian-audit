@@ -13,6 +13,9 @@ import { LogViewerTrigger } from "@/components/LogViewer";
 import { SystemLogViewer } from "@/components/SystemLogViewer";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AIConnectionStatus } from "@/components/AIConnectionStatus";
+import ServerManagement from "@/components/ServerManagement";
+import { OllamaConnection } from "@/components/OllamaConnection";
+
 import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
 import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -169,6 +172,13 @@ const Index = () => {
                 <Brain className="w-3 h-3 mr-1" />
                 KI-gesteuert
               </Badge>
+              {/* SSH Connection Status Indicator */}
+              {servers.some(s => s.status === 'connected' || s.status === 'online') && (
+                <Badge variant="default" className="bg-success text-success-foreground animate-pulse">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  SSH Verbunden
+                </Badge>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               <LogViewerTrigger />
@@ -359,10 +369,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="servers" className="space-y-6">
-            {/* Import the new ServerManagement component */}
-            <div className="space-y-6">
-              <ServerManagement />
-            </div>
+            <ServerManagement />
           </TabsContent>
 
           <TabsContent value="audit" className="space-y-6">
@@ -508,7 +515,3 @@ const Index = () => {
 };
 
 export default Index;
-
-// Import additional components
-import { ServerManagement } from "@/components/ServerManagement";
-import { OllamaConnection } from "@/components/OllamaConnection";

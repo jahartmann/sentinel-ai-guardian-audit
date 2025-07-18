@@ -94,15 +94,94 @@ app.post('/api/ssh/connect', async (req, res) => {
     }
 
     const connection = await sshService.connect(server);
+    
+    // Update server status to connected
+    await serverManager.updateServerStatus(serverId, 'connected');
+    
     res.json({ 
       success: true, 
       data: { 
         connectionId: connection.id,
-        status: connection.status 
+        status: connection.status,
+        serverInfo: {
+          id: serverId,
+          name: server.name,
+          connected: true
+        }
       } 
     });
   } catch (error) {
+    // Update server status to offline on connection failure
+    await serverManager.updateServerStatus(serverId, 'offline');
     logger.error('SSH', `Connection failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// SSH Key Distribution
+app.post('/api/ssh/generate-key', async (req, res) => {
+  try {
+    const keyPair = await sshService.generateSSHKey();
+    res.json({ success: true, data: { publicKey: keyPair.publicKey } });
+  } catch (error) {
+    logger.error('SSH', `Key generation failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/ssh/distribute-key', async (req, res) => {
+  try {
+    const { serverId } = req.body;
+    const server = await serverManager.getServer(serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    const result = await sshService.distributeKey(server);
+    
+    // Update server with key deployment status
+    await serverManager.updateServer(serverId, { keyDeployed: true });
+    
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('SSH', `Key distribution failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// System Information Gathering
+app.post('/api/system/gather-info', async (req, res) => {
+  try {
+    const { serverId } = req.body;
+    const server = await serverManager.getServer(serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    // Connect and gather system information
+    const connection = await sshService.connect(server);
+    const systemInfo = await sshService.gatherSystemInfo(connection.id);
+    
+    // Store system info in server record
+    await serverManager.updateServer(serverId, { systemInfo });
+    
+    res.json({ success: true, data: systemInfo });
+  } catch (error) {
+    logger.error('System', `Info gathering failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/system/info/:serverId', async (req, res) => {
+  try {
+    const server = await serverManager.getServer(req.params.serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    res.json({ success: true, data: server.systemInfo || null });
+  } catch (error) {
+    logger.error('System', `Failed to get system info: ${error.message}`);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -169,6 +248,75 @@ app.get('/api/audit/:auditId/status', async (req, res) => {
     res.json({ success: true, data: status });
   } catch (error) {
     logger.error('Audit', `Failed to get audit status: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/audit/generate-report', async (req, res) => {
+  try {
+    const { serverId, model } = req.body;
+    const server = await serverManager.getServer(serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    // Gather all system data for analysis
+    const connection = await sshService.connect(server);
+    const systemData = await sshService.gatherSystemData(connection.id);
+    
+    // Generate AI audit report
+    const report = await ollamaService.generateAuditReport(systemData, model);
+    
+    res.json({ success: true, data: { report, systemData } });
+  } catch (error) {
+    logger.error('Audit', `Failed to generate report: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Network Anomaly Detection
+app.post('/api/network/start-monitoring', async (req, res) => {
+  try {
+    const { serverId } = req.body;
+    const server = await serverManager.getServer(serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    const connection = await sshService.connect(server);
+    const monitoring = await sshService.startNetworkMonitoring(connection.id);
+    
+    res.json({ success: true, data: monitoring });
+  } catch (error) {
+    logger.error('Network', `Failed to start monitoring: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/network/anomalies/:serverId', async (req, res) => {
+  try {
+    const server = await serverManager.getServer(req.params.serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    const connection = await sshService.connect(server);
+    const anomalies = await sshService.getNetworkAnomalies(connection.id);
+    
+    res.json({ success: true, data: anomalies });
+  } catch (error) {
+    logger.error('Network', `Failed to get anomalies: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Ollama Models Management
+app.get('/api/ollama/models', async (req, res) => {
+  try {
+    const models = await ollamaService.getAvailableModels();
+    res.json({ success: true, data: models });
+  } catch (error) {
+    logger.error('Ollama', `Failed to get models: ${error.message}`);
     res.status(500).json({ success: false, error: error.message });
   }
 });
