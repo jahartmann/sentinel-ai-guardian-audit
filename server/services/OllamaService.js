@@ -57,12 +57,66 @@ export class OllamaService {
       
       return models.map(model => ({
         name: model.name,
+        model: model.model,
         size: model.size,
-        modified: model.modified_at
+        digest: model.digest,
+        modified_at: model.modified_at,
+        details: model.details
       }));
     } catch (error) {
       this.logger.error('Ollama', `Failed to get models: ${error.message}`);
       throw new Error(`Failed to retrieve Ollama models: ${error.message}`);
+    }
+  }
+
+  async getRunningModels() {
+    try {
+      const response = await axios.get(`${this.baseUrl}/ps`, {
+        timeout: 5000
+      });
+
+      const models = response.data.models || [];
+      this.logger.info('Ollama', `📊 Retrieved ${models.length} running models`);
+      
+      return models.map(model => ({
+        name: model.name,
+        model: model.model,
+        size: model.size,
+        size_vram: model.size_vram,
+        digest: model.digest,
+        details: model.details,
+        expires_at: model.expires_at
+      }));
+    } catch (error) {
+      this.logger.error('Ollama', `Failed to get running models: ${error.message}`);
+      throw new Error(`Failed to retrieve running models: ${error.message}`);
+    }
+  }
+
+  async getModelInfo(modelName) {
+    try {
+      const response = await axios.post(`${this.baseUrl}/show`, {
+        model: modelName
+      }, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', `📄 Retrieved model info for ${modelName}`);
+      
+      return {
+        modelfile: response.data.modelfile,
+        parameters: response.data.parameters,
+        template: response.data.template,
+        details: response.data.details,
+        model_info: response.data.model_info,
+        capabilities: response.data.capabilities
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `Failed to get model info for ${modelName}: ${error.message}`);
+      throw new Error(`Failed to retrieve model info: ${error.message}`);
     }
   }
 
@@ -98,7 +152,13 @@ export class OllamaService {
         message: response.data.message,
         model,
         created_at: response.data.created_at,
-        done: response.data.done
+        done: response.data.done,
+        total_duration: response.data.total_duration,
+        load_duration: response.data.load_duration,
+        prompt_eval_count: response.data.prompt_eval_count,
+        prompt_eval_duration: response.data.prompt_eval_duration,
+        eval_count: response.data.eval_count,
+        eval_duration: response.data.eval_duration
       };
     } catch (error) {
       this.logger.error('Ollama', `❌ Chat failed with model ${model}`, {
@@ -140,11 +200,119 @@ export class OllamaService {
         response: response.data.response,
         model,
         created_at: response.data.created_at,
-        done: response.data.done
+        done: response.data.done,
+        total_duration: response.data.total_duration,
+        load_duration: response.data.load_duration,
+        prompt_eval_count: response.data.prompt_eval_count,
+        prompt_eval_duration: response.data.prompt_eval_duration,
+        eval_count: response.data.eval_count,
+        eval_duration: response.data.eval_duration
       };
     } catch (error) {
       this.logger.error('Ollama', `❌ Generation failed: ${error.message}`);
       throw new Error(`Response generation failed: ${error.message}`);
+    }
+  }
+
+  async embeddings(model, prompt) {
+    try {
+      this.logger.info('Ollama', `🔢 Generating embeddings with ${model}`);
+
+      const response = await axios.post(`${this.baseUrl}/embeddings`, {
+        model,
+        prompt
+      }, {
+        timeout: 60000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Embeddings generated successfully', {
+        model,
+        embeddingLength: response.data.embedding?.length || 0
+      });
+
+      return {
+        success: true,
+        embedding: response.data.embedding
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Embeddings generation failed: ${error.message}`);
+      throw new Error(`Embeddings generation failed: ${error.message}`);
+    }
+  }
+
+  async loadModel(modelName) {
+    try {
+      this.logger.info('Ollama', `📥 Loading model: ${modelName}`);
+
+      const response = await axios.post(`${this.baseUrl}/generate`, {
+        model: modelName,
+        prompt: ""
+      }, {
+        timeout: 60000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Model loaded successfully', { model: modelName });
+
+      return {
+        success: true,
+        model: modelName,
+        loaded: true
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Failed to load model ${modelName}: ${error.message}`);
+      throw new Error(`Failed to load model: ${error.message}`);
+    }
+  }
+
+  async unloadModel(modelName) {
+    try {
+      this.logger.info('Ollama', `📤 Unloading model: ${modelName}`);
+
+      const response = await axios.post(`${this.baseUrl}/generate`, {
+        model: modelName,
+        prompt: "",
+        keep_alive: 0
+      }, {
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      this.logger.info('Ollama', '✅ Model unloaded successfully', { model: modelName });
+
+      return {
+        success: true,
+        model: modelName,
+        unloaded: true
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `❌ Failed to unload model ${modelName}: ${error.message}`);
+      throw new Error(`Failed to unload model: ${error.message}`);
+    }
+  }
+
+  async getVersion() {
+    try {
+      const response = await axios.get(`${this.baseUrl.replace('/api', '')}/api/version`, {
+        timeout: 5000
+      });
+
+      this.logger.info('Ollama', '📋 Retrieved Ollama version', { version: response.data.version });
+
+      return {
+        success: true,
+        version: response.data.version
+      };
+    } catch (error) {
+      this.logger.error('Ollama', `Failed to get version: ${error.message}`);
+      throw new Error(`Failed to retrieve version: ${error.message}`);
     }
   }
 

@@ -143,11 +143,56 @@ class BackendApiService {
   // Ollama Integration
   async getOllamaStatus(): Promise<ApiResponse<{
     success: boolean;
-    models: Array<{ name: string; size?: number; modified?: string }>;
+    models: Array<{ 
+      name: string; 
+      model: string;
+      size?: number; 
+      modified_at?: string;
+      digest?: string;
+      details?: any;
+    }>;
     status: string;
     url: string;
   }>> {
     return this.request('/api/ollama/status');
+  }
+
+  async getOllamaModels(): Promise<ApiResponse<{
+    models: Array<{ 
+      name: string; 
+      model: string;
+      size?: number; 
+      modified_at?: string;
+      digest?: string;
+      details?: any;
+    }>;
+  }>> {
+    return this.request('/api/ollama/models');
+  }
+
+  async getRunningModels(): Promise<ApiResponse<{
+    models: Array<{ 
+      name: string; 
+      model: string;
+      size?: number; 
+      size_vram?: number;
+      expires_at?: string;
+      digest?: string;
+      details?: any;
+    }>;
+  }>> {
+    return this.request('/api/ollama/running');
+  }
+
+  async getModelInfo(modelName: string): Promise<ApiResponse<{
+    modelfile: string;
+    parameters: string;
+    template: string;
+    details: any;
+    model_info: any;
+    capabilities: string[];
+  }>> {
+    return this.request(`/api/ollama/model/${encodeURIComponent(modelName)}`);
   }
 
   async sendOllamaChat(model: string, messages: Array<{ role: string; content: string }>): Promise<ApiResponse<{
@@ -156,11 +201,75 @@ class BackendApiService {
     model: string;
     created_at: string;
     done: boolean;
+    total_duration?: number;
+    load_duration?: number;
+    prompt_eval_count?: number;
+    prompt_eval_duration?: number;
+    eval_count?: number;
+    eval_duration?: number;
   }>> {
     return this.request('/api/ollama/chat', {
       method: 'POST',
       body: JSON.stringify({ model, messages }),
     });
+  }
+
+  async generateResponse(model: string, prompt: string, options?: any): Promise<ApiResponse<{
+    success: boolean;
+    response: string;
+    model: string;
+    created_at: string;
+    done: boolean;
+    total_duration?: number;
+    load_duration?: number;
+    prompt_eval_count?: number;
+    prompt_eval_duration?: number;
+    eval_count?: number;
+    eval_duration?: number;
+  }>> {
+    return this.request('/api/ollama/generate', {
+      method: 'POST',
+      body: JSON.stringify({ model, prompt, options }),
+    });
+  }
+
+  async generateEmbeddings(model: string, prompt: string): Promise<ApiResponse<{
+    success: boolean;
+    embedding: number[];
+  }>> {
+    return this.request('/api/ollama/embeddings', {
+      method: 'POST',
+      body: JSON.stringify({ model, prompt }),
+    });
+  }
+
+  async loadModel(modelName: string): Promise<ApiResponse<{
+    success: boolean;
+    model: string;
+    loaded: boolean;
+  }>> {
+    return this.request('/api/ollama/load', {
+      method: 'POST',
+      body: JSON.stringify({ model: modelName }),
+    });
+  }
+
+  async unloadModel(modelName: string): Promise<ApiResponse<{
+    success: boolean;
+    model: string;
+    unloaded: boolean;
+  }>> {
+    return this.request('/api/ollama/unload', {
+      method: 'POST',
+      body: JSON.stringify({ model: modelName }),
+    });
+  }
+
+  async getOllamaVersion(): Promise<ApiResponse<{
+    success: boolean;
+    version: string;
+  }>> {
+    return this.request('/api/ollama/version');
   }
 
   // Audit Operations

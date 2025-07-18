@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { backendApi } from "@/services/backendApiService";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -17,13 +19,20 @@ import {
   Settings,
   MessageSquare,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  Code,
+  Database,
+  Globe,
+  Activity
 } from "lucide-react";
 
 interface OllamaModel {
   name: string;
+  model: string;
   size?: number;
-  modified?: string;
+  modified_at?: string;
+  details?: any;
 }
 
 interface OllamaStatus {
@@ -33,20 +42,33 @@ interface OllamaStatus {
   models: OllamaModel[];
 }
 
+interface OllamaVersion {
+  success: boolean;
+  version: string;
+}
+
 export const OllamaConnection = () => {
   const [status, setStatus] = useState<OllamaStatus | null>(null);
+  const [version, setVersion] = useState<OllamaVersion | null>(null);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [chatTesting, setChatTesting] = useState(false);
+  const [generateTesting, setGenerateTesting] = useState(false);
+  const [embeddingTesting, setEmbeddingTesting] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [testMessage, setTestMessage] = useState('Erkläre in einem Satz, was ein Sicherheitsaudit ist.');
+  const [generatePrompt, setGeneratePrompt] = useState('Schreibe einen kurzen Text über IT-Sicherheit.');
+  const [embeddingText, setEmbeddingText] = useState('Beispieltext für Embeddings');
   const [testResponse, setTestResponse] = useState<string>('');
-  const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434');
+  const [generateResponse, setGenerateResponse] = useState<string>('');
+  const [embeddingResult, setEmbeddingResult] = useState<number[]>([]);
+  const [ollamaUrl, setOllamaUrl] = useState('http://192.168.0.48/api');
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     checkStatus();
+    checkVersion();
   }, []);
 
   const checkStatus = async () => {
@@ -78,6 +100,17 @@ export const OllamaConnection = () => {
     }
   };
 
+  const checkVersion = async () => {
+    try {
+      const response = await backendApi.getOllamaVersion();
+      if (response.success && response.data) {
+        setVersion(response.data);
+      }
+    } catch (error) {
+      console.error('Version check failed:', error);
+    }
+  };
+
   const testChat = async () => {
     if (!selectedModel || !testMessage.trim()) {
       toast({
@@ -100,7 +133,7 @@ export const OllamaConnection = () => {
         setTestResponse(response.data.message.content);
         toast({
           title: "Chat-Test erfolgreich",
-          description: "Das KI-Modell antwortet korrekt.",
+          description: `Antwort in ${response.data.eval_count || 0} Tokens generiert.`,
         });
       } else {
         throw new Error(response.error || 'Chat-Test fehlgeschlagen');
@@ -113,6 +146,78 @@ export const OllamaConnection = () => {
       });
     } finally {
       setChatTesting(false);
+    }
+  };
+
+  const testGenerate = async () => {
+    if (!selectedModel || !generatePrompt.trim()) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie ein Modell und geben Sie einen Prompt ein.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGenerateTesting(true);
+    setGenerateResponse('');
+    
+    try {
+      const response = await backendApi.generateResponse(selectedModel, generatePrompt);
+
+      if (response.success && response.data) {
+        setGenerateResponse(response.data.response);
+        toast({
+          title: "Text-Generierung erfolgreich",
+          description: `Antwort in ${response.data.eval_count || 0} Tokens generiert.`,
+        });
+      } else {
+        throw new Error(response.error || 'Text-Generierung fehlgeschlagen');
+      }
+    } catch (error) {
+      toast({
+        title: "Text-Generierung fehlgeschlagen",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive"
+      });
+    } finally {
+      setGenerateTesting(false);
+    }
+  };
+
+  const testEmbeddings = async () => {
+    if (!selectedModel || !embeddingText.trim()) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie ein Modell und geben Sie Text ein.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setEmbeddingTesting(true);
+    setEmbeddingResult([]);
+    
+    try {
+      const response = await backendApi.generateEmbeddings(selectedModel, embeddingText);
+
+      if (response.success && response.data) {
+        setEmbeddingResult(response.data.embedding);
+        toast({
+          title: "Embeddings erfolgreich generiert",
+          description: `${response.data.embedding.length} Dimensionen erstellt.`,
+        });
+      } else {
+        throw new Error(response.error || 'Embedding-Generierung fehlgeschlagen');
+      }
+    } catch (error) {
+      toast({
+        title: "Embedding-Generierung fehlgeschlagen",
+        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        variant: "destructive"
+      });
+    } finally {
+      setEmbeddingTesting(false);
     }
   };
 
@@ -168,7 +273,7 @@ export const OllamaConnection = () => {
                     id="ollama-url"
                     value={ollamaUrl}
                     onChange={(e) => setOllamaUrl(e.target.value)}
-                    placeholder="http://127.0.0.1:11434"
+                    placeholder="http://192.168.0.48/api"
                   />
                 </div>
                 <Alert>
@@ -202,13 +307,14 @@ export const OllamaConnection = () => {
           </CardTitle>
           <CardDescription>
             Server: {status?.url || ollamaUrl}
+            {version && <span className="ml-4">Version: {version.version}</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {status?.success ? (
             <div className="space-y-4">
               <p className="text-success">✅ Ollama-Server ist erreichbar und funktionsfähig</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Verfügbare Modelle:</span>
                   <span className="ml-2">{status.models.length}</span>
@@ -221,6 +327,12 @@ export const OllamaConnection = () => {
                   <span className="font-medium">Proxy:</span>
                   <span className="ml-2 text-success">Backend</span>
                 </div>
+                {version && (
+                  <div>
+                    <span className="font-medium">Version:</span>
+                    <span className="ml-2">{version.version}</span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -241,103 +353,226 @@ export const OllamaConnection = () => {
         </CardContent>
       </Card>
 
-      {/* Models Card */}
-      {status?.success && status.models.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Verfügbare KI-Modelle</CardTitle>
-            <CardDescription>
-              Wählen Sie ein Modell für Sicherheitsanalysen aus
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {status.models.map((model) => (
-                  <Card key={model.name} className={`cursor-pointer transition-colors ${
-                    selectedModel === model.name ? 'ring-2 ring-primary' : ''
-                  }`} onClick={() => setSelectedModel(model.name)}>
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{model.name.split(':')[0]}</span>
-                          <Badge variant="outline">
-                            {model.name.split(':')[1] || 'latest'}
-                          </Badge>
-                        </div>
-                        {model.size && (
-                          <p className="text-sm text-muted-foreground">
-                            Größe: {formatModelSize(model.size)}
-                          </p>
-                        )}
-                        {model.modified && (
-                          <p className="text-xs text-muted-foreground">
-                            Geändert: {new Date(model.modified).toLocaleDateString('de-DE')}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {status?.success && (
+        <Tabs defaultValue="testing" className="w-full">
+          <TabsList className="grid w-full grid-cols-1">
+            <TabsTrigger value="testing">API-Tests</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="testing" className="space-y-6">
+            {/* Model Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Modell-Auswahl</CardTitle>
+                <CardDescription>
+                  Wählen Sie ein Modell für die API-Tests aus
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="model-select">Aktives Modell</Label>
+                    <Select value={selectedModel} onValueChange={setSelectedModel}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Modell auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {status.models.map((model) => (
+                          <SelectItem key={model.name} value={model.name}>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{model.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                {formatModelSize(model.size)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {selectedModel && (
+                    <Alert>
+                      <Brain className="h-4 w-4" />
+                      <AlertDescription>
+                        Ausgewähltes Modell: <strong>{selectedModel}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Chat Test Card */}
-      {status?.success && selectedModel && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <MessageSquare className="w-5 h-5 mr-2" />
-              KI-Chat Test
-            </CardTitle>
-            <CardDescription>
-              Testen Sie die Kommunikation mit dem ausgewählten Modell: {selectedModel}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="test-message">Test-Nachricht</Label>
-                <Input
-                  id="test-message"
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  placeholder="Geben Sie eine Testnachricht ein..."
-                />
-              </div>
-              
-              <Button 
-                onClick={testChat} 
-                disabled={chatTesting || !testMessage.trim()}
-                className="w-full"
-              >
-                {chatTesting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    KI antwortet...
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Chat testen
-                  </>
-                )}
-              </Button>
+            {/* API Tests */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Chat API Test */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2" />
+                    Chat API
+                  </CardTitle>
+                  <CardDescription>
+                    Test der /api/chat Schnittstelle
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="chat-message">Nachricht</Label>
+                      <Textarea
+                        id="chat-message"
+                        value={testMessage}
+                        onChange={(e) => setTestMessage(e.target.value)}
+                        placeholder="Geben Sie eine Testnachricht ein..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <Button 
+                      onClick={testChat} 
+                      disabled={chatTesting || !testMessage.trim() || !selectedModel}
+                      className="w-full"
+                    >
+                      {chatTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Teste...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Chat testen
+                        </>
+                      )}
+                    </Button>
 
-              {testResponse && (
-                <Alert>
-                  <Brain className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>KI-Antwort:</strong> {testResponse}
-                  </AlertDescription>
-                </Alert>
-              )}
+                    {testResponse && (
+                      <Alert>
+                        <Brain className="h-4 w-4" />
+                        <AlertDescription>
+                          <strong>Antwort:</strong> {testResponse}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Generate API Test */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Zap className="w-5 h-5 mr-2" />
+                    Generate API
+                  </CardTitle>
+                  <CardDescription>
+                    Test der /api/generate Schnittstelle
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="generate-prompt">Prompt</Label>
+                      <Textarea
+                        id="generate-prompt"
+                        value={generatePrompt}
+                        onChange={(e) => setGeneratePrompt(e.target.value)}
+                        placeholder="Geben Sie einen Prompt ein..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <Button 
+                      onClick={testGenerate} 
+                      disabled={generateTesting || !generatePrompt.trim() || !selectedModel}
+                      className="w-full"
+                    >
+                      {generateTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generiere...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 mr-2" />
+                          Generieren
+                        </>
+                      )}
+                    </Button>
+
+                    {generateResponse && (
+                      <Alert>
+                        <Brain className="h-4 w-4" />
+                        <AlertDescription>
+                          <strong>Generiert:</strong> {generateResponse}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Embeddings API Test */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Code className="w-5 h-5 mr-2" />
+                    Embeddings API
+                  </CardTitle>
+                  <CardDescription>
+                    Test der /api/embeddings Schnittstelle
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="embedding-text">Text</Label>
+                      <Textarea
+                        id="embedding-text"
+                        value={embeddingText}
+                        onChange={(e) => setEmbeddingText(e.target.value)}
+                        placeholder="Text für Embeddings..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <Button 
+                      onClick={testEmbeddings} 
+                      disabled={embeddingTesting || !embeddingText.trim() || !selectedModel}
+                      className="w-full"
+                    >
+                      {embeddingTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Erstelle...
+                        </>
+                      ) : (
+                        <>
+                          <Code className="w-4 h-4 mr-2" />
+                          Embeddings
+                        </>
+                      )}
+                    </Button>
+
+                    {embeddingResult.length > 0 && (
+                      <Alert>
+                        <Code className="h-4 w-4" />
+                        <AlertDescription>
+                          <strong>Embeddings:</strong> {embeddingResult.length} Dimensionen
+                          <br />
+                          <span className="text-xs font-mono">
+                            [{embeddingResult.slice(0, 5).map(n => n.toFixed(3)).join(', ')}...]
+                          </span>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       )}
 
       {/* Setup Instructions */}
@@ -358,9 +593,14 @@ export const OllamaConnection = () => {
               </div>
               
               <div className="space-y-2">
-                <h4 className="font-medium">2. Modell herunterladen</h4>
-                <div className="bg-muted p-3 rounded font-mono text-sm">
-                  ollama pull llama3.1:8b
+                <h4 className="font-medium">2. Modelle herunterladen</h4>
+                <div className="space-y-2">
+                  <div className="bg-muted p-3 rounded font-mono text-sm">
+                    ollama pull llama3.1:8b
+                  </div>
+                  <div className="bg-muted p-3 rounded font-mono text-sm">
+                    ollama pull gemma2:9b
+                  </div>
                 </div>
               </div>
               

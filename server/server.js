@@ -47,6 +47,12 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // ============= API ROUTES =============
 
+// Import route handlers
+import ollamaRoutes from './routes/ollama.js';
+
+// Use routes
+app.use('/api/ollama', ollamaRoutes);
+
 // Server Management Routes
 app.get('/api/servers', async (req, res) => {
   try {
