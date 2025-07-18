@@ -30,12 +30,12 @@ const io = new SocketIOServer(server, {
 const PORT = process.env.PORT || 3000;
 const WS_PORT = process.env.WS_PORT || 3000;
 
-// Initialize services
+// Initialize services in correct order
 const logger = new Logger();
+const serverManager = new ServerManager(logger);
 const sshService = new SSHService(logger);
 const ollamaService = new OllamaService(logger);
-const auditService = new AuditService(logger, sshService, ollamaService);
-const serverManager = new ServerManager(logger);
+const auditService = new AuditService(logger, sshService, ollamaService, serverManager);
 
 // Middleware
 app.use(cors());
@@ -112,7 +112,9 @@ app.post('/api/ssh/connect', async (req, res) => {
     });
   } catch (error) {
     // Update server status to offline on connection failure
-    await serverManager.updateServerStatus(serverId, 'offline');
+    if (req.body.serverId) {
+      await serverManager.updateServerStatus(req.body.serverId, 'offline');
+    }
     logger.error('SSH', `Connection failed: ${error.message}`);
     res.status(500).json({ success: false, error: error.message });
   }

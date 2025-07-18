@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 
 export class AuditService {
-  constructor(logger, sshService, ollamaService) {
+  constructor(logger, sshService, ollamaService, serverManager) {
     this.logger = logger;
     this.sshService = sshService;
     this.ollamaService = ollamaService;
+    this.serverManager = serverManager;
     this.activeAudits = new Map();
     this.logger.info('Audit', '🛡️ Audit Service initialized');
   }
@@ -53,7 +54,8 @@ export class AuditService {
 
       // Step 2: Establish SSH connection
       this.updateAuditStatus(audit, socketIO, 'connecting', 10, 'Establishing SSH connection...');
-      const connection = await this.sshService.connect(await this.getServerConfig(serverId));
+      const serverConfig = await this.getServerConfig(serverId);
+      const connection = await this.sshService.connect(serverConfig);
       
       // Step 3: Gather system data
       this.updateAuditStatus(audit, socketIO, 'gathering', 20, 'Collecting system data...');
@@ -145,11 +147,7 @@ export class AuditService {
   }
 
   async getServerConfig(serverId) {
-    // This would typically come from ServerManager
-    // For now, we'll implement a simple lookup
-    const { ServerManager } = await import('./ServerManager.js');
-    const serverManager = new ServerManager(this.logger);
-    const server = await serverManager.getServer(serverId);
+    const server = await this.serverManager.getServer(serverId);
     
     if (!server) {
       throw new Error(`Server with ID ${serverId} not found`);
@@ -324,9 +322,6 @@ export class AuditService {
   }
 
   async saveAuditResult(audit) {
-    const { ServerManager } = await import('./ServerManager.js');
-    const serverManager = new ServerManager(this.logger);
-    
     const auditData = {
       status: audit.status,
       scores: audit.scores,
@@ -339,7 +334,7 @@ export class AuditService {
       duration: audit.duration
     };
 
-    await serverManager.saveAuditResult(audit.serverId, auditData);
+    await this.serverManager.saveAuditResult(audit.serverId, auditData);
   }
 
   async getAuditStatus(auditId) {
