@@ -31,21 +31,21 @@ import {
   AlertTriangle,
   CheckCircle
 } from "lucide-react";
-import { useServerManagement } from "@/hooks/useServerManagement";
+import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
 
 export default function AuditReports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("lastScan");
   const [filterStatus, setFilterStatus] = useState("all");
   
-  const { auditResults, servers } = useServerManagement();
+  const { auditResults, servers } = useServerManagementBackend();
 
   const filteredReports = auditResults.filter(report => {
     const server = servers.find(s => s.id === report.serverId);
     if (!server) return false;
     
     const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         server.hostname.toLowerCase().includes(searchTerm.toLowerCase());
+                         (server.hostname || server.ip).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "all" || report.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -77,10 +77,10 @@ export default function AuditReports() {
   );
 
   const avgSecurityScore = auditResults.length > 0 
-    ? Math.round(auditResults.reduce((sum, report) => sum + report.securityScore, 0) / auditResults.length)
+    ? Math.round(auditResults.reduce((sum, report) => sum + (report.scores?.security || 0), 0) / auditResults.length)
     : 0;
 
-  const compliantServers = auditResults.filter(report => report.overallScore >= 80).length;
+  const compliantServers = auditResults.filter(report => (report.scores?.overall || 0) >= 80).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-background/50 p-6">
@@ -246,15 +246,15 @@ export default function AuditReports() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className={`font-semibold ${getScoreColor(report.overallScore)}`}>
-                            {report.overallScore}/100
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getScoreBadge(report.securityScore)}>
-                            {report.securityScore}/100
-                          </Badge>
-                        </TableCell>
+                           <div className={`font-semibold ${getScoreColor(report.scores?.overall || 0)}`}>
+                             {report.scores?.overall || 0}/100
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant={getScoreBadge(report.scores?.security || 0)}>
+                             {report.scores?.security || 0}/100
+                           </Badge>
+                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             {criticalCount > 0 && (

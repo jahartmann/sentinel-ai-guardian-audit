@@ -58,9 +58,19 @@ export const useSettings = () => {
   };
 
   const updateOllamaConfig = (config: Partial<OllamaConfig>) => {
-    updateSettings({
-      ollama: { ...settings.ollama, ...config }
-    });
+    const updatedOllamaConfig = { ...settings.ollama, ...config };
+    const newSettings = {
+      ...settings,
+      ollama: updatedOllamaConfig
+    };
+    setSettings(newSettings);
+    
+    try {
+      localStorage.setItem('secureai-settings', JSON.stringify(newSettings));
+      console.log('Settings saved:', newSettings); // Debug log
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
   };
 
   const testOllamaConnection = async (): Promise<boolean> => {
