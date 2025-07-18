@@ -481,4 +481,3 @@ Antworte auf Deutsch mit konkreten, umsetzbaren Vorschlägen.`;
     }
   }
 }
-}
