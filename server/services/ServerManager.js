@@ -301,4 +301,33 @@ export class ServerManager {
       lastUpdated: new Date().toISOString()
     };
   }
+
+  // Get all audit results from all servers
+  async getAllAuditResults() {
+    try {
+      const allResults = [];
+      const files = await fs.readdir(this.auditResultsDir);
+      const auditFiles = files.filter(file => 
+        file.startsWith('audit-') && file.endsWith('.json')
+      );
+
+      for (const file of auditFiles) {
+        try {
+          const filepath = path.join(this.auditResultsDir, file);
+          const data = await fs.readFile(filepath, 'utf8');
+          allResults.push(JSON.parse(data));
+        } catch (error) {
+          this.logger.warn('ServerManager', `Failed to read audit file: ${file}`, { error: error.message });
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      allResults.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      return allResults;
+    } catch (error) {
+      this.logger.error('ServerManager', `Failed to get all audit results: ${error.message}`);
+      return [];
+    }
+  }
 }

@@ -254,6 +254,28 @@ app.get('/api/audit/:auditId/status', async (req, res) => {
   }
 });
 
+// Get all audit results
+app.get('/api/audit/results', async (req, res) => {
+  try {
+    const allResults = await serverManager.getAllAuditResults();
+    res.json({ success: true, data: allResults });
+  } catch (error) {
+    logger.error('Audit', `Failed to get audit results: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get audit results for specific server
+app.get('/api/audit/results/:serverId', async (req, res) => {
+  try {
+    const results = await serverManager.getAuditResults(req.params.serverId);
+    res.json({ success: true, data: results });
+  } catch (error) {
+    logger.error('Audit', `Failed to get server audit results: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/audit/generate-report', async (req, res) => {
   try {
     const { serverId, model } = req.body;
