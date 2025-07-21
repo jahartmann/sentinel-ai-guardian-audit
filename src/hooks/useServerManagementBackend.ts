@@ -272,6 +272,17 @@ export const useServerManagementBackend = () => {
     }
   };
 
+  const refreshAuditResults = async () => {
+    try {
+      const response = await backendApi.request<AuditResult[]>('/api/audit/results');
+      if (response.success && response.data) {
+        setAuditResults(response.data);
+      }
+    } catch (error) {
+      logger.error('audit', 'Failed to refresh audit results', { error });
+    }
+  };
+
   return {
     servers,
     auditResults,
@@ -287,6 +298,7 @@ export const useServerManagementBackend = () => {
     startAudit,
     getAuditProgress,
     startNetworkScan,
-    refreshServers: loadServers
+    refreshServers: loadServers,
+    refreshAuditResults
   };
 };

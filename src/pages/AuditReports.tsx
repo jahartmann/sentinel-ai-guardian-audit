@@ -38,7 +38,11 @@ export default function AuditReports() {
   const [sortBy, setSortBy] = useState("lastScan");
   const [filterStatus, setFilterStatus] = useState("all");
   
-  const { auditResults, servers } = useServerManagementBackend();
+  const { auditResults, servers, refreshAuditResults } = useServerManagementBackend();
+
+  useEffect(() => {
+    refreshAuditResults();
+  }, [refreshAuditResults]);
 
   const filteredReports = auditResults.filter(report => {
     const server = servers.find(s => s.id === report.serverId);

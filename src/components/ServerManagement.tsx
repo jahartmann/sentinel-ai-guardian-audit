@@ -7,6 +7,8 @@ import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { AddServerDialog } from "@/components/AddServerDialog";
 import { EditServerDialog } from "@/components/EditServerDialog";
+import { AuditProgress } from "@/components/AuditProgress";
+import { SystemInfoDialog } from "@/components/SystemInfoDialog";
 import { 
   Server, 
   Shield, 
@@ -39,6 +41,8 @@ const ServerManagement = () => {
   const { toast } = useToast();
   const [systemInfo, setSystemInfo] = useState<any>(null);
   const [showSystemInfo, setShowSystemInfo] = useState(false);
+  const [activeAudit, setActiveAudit] = useState<{auditId: string, serverName: string} | null>(null);
+  const [selectedSystemInfo, setSelectedSystemInfo] = useState<{data: any, serverName: string} | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -56,9 +60,12 @@ const ServerManagement = () => {
 
   const handleGetSystemInfo = async (serverId: string) => {
     try {
+      const server = servers.find(s => s.id === serverId);
       const info = await startDataGathering(serverId);
-      setSystemInfo(info);
-      setShowSystemInfo(true);
+      setSelectedSystemInfo({
+        data: info,
+        serverName: server?.name || 'Unknown Server'
+      });
       toast({
         title: "Systeminformationen abgerufen",
         description: "Daten erfolgreich vom Server geladen."
@@ -83,7 +90,13 @@ const ServerManagement = () => {
     }
 
     try {
-      await startAudit(serverId, settings.ollama.model);
+      const server = servers.find(s => s.id === serverId);
+      const auditResult = await startAudit(serverId, settings.ollama.model);
+      const auditId = auditResult.id;
+      setActiveAudit({
+        auditId,
+        serverName: server?.name || 'Unknown Server'
+      });
       toast({
         title: "Audit gestartet",
         description: "Der KI-Audit-Bericht wird erstellt..."
@@ -261,24 +274,24 @@ const ServerManagement = () => {
           ))
         )}
         
-        {/* System Info Modal */}
-        {showSystemInfo && systemInfo && (
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Systeminformationen</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setShowSystemInfo(false)}>
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <pre className="text-sm bg-muted p-4 rounded overflow-auto max-h-64">
-                {JSON.stringify(systemInfo, null, 2)}
-              </pre>
-            </CardContent>
-          </Card>
+        {/* Audit Progress Modal */}
+        {activeAudit && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <AuditProgress
+              auditId={activeAudit.auditId}
+              serverName={activeAudit.serverName}
+              onClose={() => setActiveAudit(null)}
+            />
+          </div>
         )}
+        
+        {/* System Info Dialog */}
+        <SystemInfoDialog
+          isOpen={!!selectedSystemInfo}
+          onClose={() => setSelectedSystemInfo(null)}
+          systemInfo={selectedSystemInfo?.data}
+          serverName={selectedSystemInfo?.serverName || ''}
+        />
       </div>
     </div>
   );
