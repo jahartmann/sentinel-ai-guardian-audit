@@ -34,7 +34,8 @@ const ServerManagement = () => {
     testConnection,
     startDataGathering,
     startAudit,
-    refreshServers
+    refreshServers,
+    getSystemInfo
   } = useServerManagementBackend();
   
   const { settings } = useSettings();
@@ -61,7 +62,7 @@ const ServerManagement = () => {
   const handleGetSystemInfo = async (serverId: string) => {
     try {
       const server = servers.find(s => s.id === serverId);
-      const info = await startDataGathering(serverId);
+      const info = await getSystemInfo(serverId);
       setSelectedSystemInfo({
         data: info,
         serverName: server?.name || 'Unknown Server'

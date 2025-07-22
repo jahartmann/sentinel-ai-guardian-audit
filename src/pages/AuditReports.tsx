@@ -42,6 +42,8 @@ export default function AuditReports() {
 
   useEffect(() => {
     refreshAuditResults();
+    const interval = setInterval(refreshAuditResults, 10000); // Refresh every 10 seconds
+    return () => clearInterval(interval);
   }, [refreshAuditResults]);
 
   const filteredReports = auditResults.filter(report => {

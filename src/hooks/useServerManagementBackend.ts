@@ -20,6 +20,7 @@ export const useServerManagementBackend = () => {
   useEffect(() => {
     loadServers();
     generateSSHKey();
+    refreshAuditResults();
   }, []);
 
   // Generate SSH key on backend
@@ -277,9 +278,51 @@ export const useServerManagementBackend = () => {
       const response = await backendApi.request<AuditResult[]>('/api/audit/results');
       if (response.success && response.data) {
         setAuditResults(response.data);
+        logger.info('audit', `📊 Loaded ${response.data.length} audit results`);
       }
     } catch (error) {
       logger.error('audit', 'Failed to refresh audit results', { error });
+    }
+  };
+
+  const getSystemInfo = async (serverId: string): Promise<any> => {
+    try {
+      // First connect to SSH
+      const connectResponse = await backendApi.connectSSH(serverId);
+      if (!connectResponse.success || !connectResponse.data) {
+        throw new Error('SSH connection failed');
+      }
+
+      const { connectionId } = connectResponse.data;
+
+      // Upload and execute the system info script
+      const scriptResponse = await backendApi.request<{ scriptPath: string }>('/api/ssh/upload-script', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          connectionId,
+          scriptType: 'system_info'
+        })
+      });
+
+      if (!scriptResponse.success) {
+        throw new Error('Failed to upload system info script');
+      }
+
+      // Execute the script
+      const executeResponse = await backendApi.executeSSHCommand(
+        connectionId, 
+        `chmod +x ${scriptResponse.data?.scriptPath} && ${scriptResponse.data?.scriptPath}`
+      );
+
+      if (executeResponse.success) {
+        logger.info('ssh', `📊 System info collected: ${serverId}`);
+        return executeResponse.data;
+      } else {
+        throw new Error('System info script execution failed');
+      }
+    } catch (error) {
+      logger.error('ssh', 'System info collection failed', { error });
+      throw error;
     }
   };
 
@@ -299,6 +342,7 @@ export const useServerManagementBackend = () => {
     getAuditProgress,
     startNetworkScan,
     refreshServers: loadServers,
-    refreshAuditResults
+    refreshAuditResults,
+    getSystemInfo
   };
 };

@@ -451,4 +451,45 @@ export class SSHService {
     this.logger.info('SSH', `🔑 Distributing key to ${serverConfig.name}`);
     return { status: 'key_distributed', timestamp: new Date().toISOString() };
   }
+
+  // Upload script method
+  async uploadScript(connectionId, scriptType) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) {
+      throw new Error('Connection not found');
+    }
+
+    let scriptPath;
+    if (scriptType === 'system_info') {
+      scriptPath = path.join(__dirname, '..', 'scripts', 'system_info.sh');
+    } else {
+      scriptPath = path.join(__dirname, '..', 'scripts', `${scriptType}.sh`);
+    }
+    
+    const remoteScriptPath = `/tmp/${scriptType}_${Date.now()}.sh`;
+
+    try {
+      // Read local script
+      const fs = await import('fs/promises');
+      const scriptContent = await fs.readFile(scriptPath, 'utf8');
+      
+      // Upload script to remote server via command execution
+      const escapedContent = scriptContent.replace(/'/g, "'\\''");
+      await this.executeCommand(connectionId, `cat > ${remoteScriptPath} << 'EOF'\n${scriptContent}\nEOF`);
+      
+      this.logger.info('SSH', `📤 Script uploaded: ${scriptType}`, {
+        connectionId,
+        localPath: scriptPath,
+        remotePath: remoteScriptPath
+      });
+
+      return { scriptPath: remoteScriptPath };
+    } catch (error) {
+      this.logger.error('SSH', `Failed to upload script: ${error.message}`, {
+        connectionId,
+        scriptType
+      });
+      throw error;
+    }
+  }
 }
