@@ -55,15 +55,15 @@ class BackendApiService {
   private baseUrl: string;
 
   constructor() {
-    // Backend läuft auf Port 3000, Frontend auf Port 5000
+    // Use relative URLs for production to avoid CORS issues
     this.baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'http://localhost:3000' 
-      : `http://${window.location.hostname}:3000`;
+      : '';
   }
 
   public async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
-      const url = `${this.baseUrl}${endpoint}`;
+      const url = this.baseUrl ? `${this.baseUrl}${endpoint}` : endpoint;
       logger.debug('system', `📤 ${options.method || 'GET'} ${endpoint}`);
 
       const response = await fetch(url, {
@@ -71,6 +71,7 @@ class BackendApiService {
           'Content-Type': 'application/json',
           ...options.headers,
         },
+        credentials: 'include',
         ...options,
       });
 

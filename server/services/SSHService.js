@@ -455,41 +455,70 @@ export class SSHService {
   // Upload script method
   async uploadScript(connectionId, scriptType) {
     const connection = this.connections.get(connectionId);
-    if (!connection) {
-      throw new Error('Connection not found');
+    if (!connection || !connection.ssh) {
+      throw new Error('Invalid connection');
     }
-
-    let scriptPath;
-    if (scriptType === 'system_info') {
-      scriptPath = path.join(__dirname, '..', 'scripts', 'system_info.sh');
-    } else {
-      scriptPath = path.join(__dirname, '..', 'scripts', `${scriptType}.sh`);
-    }
-    
-    const remoteScriptPath = `/tmp/${scriptType}_${Date.now()}.sh`;
 
     try {
-      // Read local script
-      const fs = await import('fs/promises');
-      const scriptContent = await fs.readFile(scriptPath, 'utf8');
+      const scriptContent = this.getScriptContent(scriptType);
+      const remoteScriptPath = `/tmp/${scriptType}_${Date.now()}.sh`;
       
-      // Upload script to remote server via command execution
-      const escapedContent = scriptContent.replace(/'/g, "'\\''");
+      // Upload script content directly
       await this.executeCommand(connectionId, `cat > ${remoteScriptPath} << 'EOF'\n${scriptContent}\nEOF`);
       
       this.logger.info('SSH', `📤 Script uploaded: ${scriptType}`, {
         connectionId,
-        localPath: scriptPath,
         remotePath: remoteScriptPath
       });
 
-      return { scriptPath: remoteScriptPath };
+      return remoteScriptPath;
     } catch (error) {
       this.logger.error('SSH', `Failed to upload script: ${error.message}`, {
         connectionId,
         scriptType
       });
       throw error;
+    }
+  }
+
+  getScriptContent(scriptType) {
+    switch (scriptType) {
+      case 'system_info':
+        return `#!/bin/bash
+echo "=== SYSTEM INFORMATION ==="
+echo "Hostname: $(hostname)"
+echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d '"' -f2)"
+echo "Kernel: $(uname -r)"
+echo "Architecture: $(uname -m)"
+echo "Uptime: $(uptime -p)"
+echo ""
+echo "=== HARDWARE ==="
+echo "CPU: $(lscpu | grep 'Model name' | cut -d ':' -f2 | xargs)"
+echo "CPU Cores: $(nproc)"
+echo "Memory: $(free -h | grep Mem | awk '{print \$2}')"
+echo "Disk: $(df -h / | tail -1 | awk '{print \$2}')"
+echo ""
+echo "=== NETWORK ==="
+ip addr show | grep -E 'inet [0-9]' | awk '{print \$2}' | head -5
+echo ""
+echo "=== PROCESSES ==="
+ps aux --sort=-%cpu | head -10
+echo ""
+echo "=== SERVICES ==="
+systemctl list-units --type=service --state=running | head -10`;
+      
+      case 'proxmox_data_export':
+        return `#!/bin/bash
+echo "=== PROXMOX DATA EXPORT ==="
+pveversion
+pvesm status
+pvenode status
+qm list
+pct list
+pvesh get /nodes/$(hostname)/status`;
+      
+      default:
+        throw new Error(\`Unknown script type: \${scriptType}\`);
     }
   }
 }

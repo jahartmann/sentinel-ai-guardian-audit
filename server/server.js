@@ -199,6 +199,18 @@ app.post('/api/ssh/execute', async (req, res) => {
   }
 });
 
+// Upload and execute scripts
+app.post('/api/ssh/upload-script', async (req, res) => {
+  try {
+    const { connectionId, scriptType } = req.body;
+    const scriptPath = await sshService.uploadScript(connectionId, scriptType);
+    res.json({ success: true, data: { scriptPath } });
+  } catch (error) {
+    logger.error('SSH', `Script upload failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/ssh/gather-data', async (req, res) => {
   try {
     const { connectionId } = req.body;
