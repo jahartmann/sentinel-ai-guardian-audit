@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { backendApi } from "@/services/backendApiService";
+import { logger } from "@/services/loggerService";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Brain,
@@ -77,24 +78,24 @@ export const OllamaConnection = () => {
       const response = await backendApi.getOllamaStatus();
       if (response.success && response.data) {
         setStatus(response.data);
-        if (response.data.models.length > 0 && !selectedModel) {
+        if (response.data.models && response.data.models.length > 0 && !selectedModel) {
           setSelectedModel(response.data.models[0].name);
         }
-      } else {
-        setStatus({
-          success: false,
-          status: response.error || 'Verbindung fehlgeschlagen',
-          url: ollamaUrl,
-          models: []
+        logger.info('ollama', '✅ Ollama status check successful', { 
+          modelsCount: response.data.models?.length || 0 
         });
+      } else {
+        throw new Error(response.error || 'Ollama connection failed');
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Backend connection failed';
       setStatus({
         success: false,
-        status: 'Backend-Verbindung fehlgeschlagen',
+        status: errorMessage,
         url: ollamaUrl,
         models: []
       });
+      logger.error('ollama', 'Ollama status check failed', { error: errorMessage });
     } finally {
       setLoading(false);
     }

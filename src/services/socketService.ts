@@ -33,17 +33,20 @@ class SocketService {
     }
 
     this.isConnecting = true;
-    // Backend läuft auf Port 3000, nicht auf dem Frontend Port
+    // Use relative URLs for production to avoid CORS issues
     const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'http://localhost:3000' 
-      : `http://${window.location.hostname}:3000`;
+      : '';
     
-    logger.info('system', `🔌 Connecting to WebSocket server: ${serverUrl}`);
+    logger.info('system', `🔌 Connecting to WebSocket server: ${serverUrl || 'current host'}`);
 
     this.socket = io(serverUrl, {
       transports: ['websocket', 'polling'],
-      timeout: 10000,
-      forceNew: true
+      timeout: 20000,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      forceNew: false
     });
 
     this.setupEventHandlers();
@@ -73,15 +76,18 @@ class SocketService {
     this.socket.on('connect_error', (error) => {
       this.isConnecting = false;
       logger.error('system', `❌ WebSocket connection error: ${error.message}`);
-      this.handleReconnect();
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.handleReconnect();
+      }
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
+      this.reconnectAttempts = 0;
       logger.info('system', `🔄 WebSocket reconnected after ${attemptNumber} attempts`);
     });
 
     this.socket.on('error', (error) => {
-      logger.error('system', `WebSocket error: ${error}`);
+      logger.error('system', `❌ WebSocket error: ${error}`);
     });
   }
 

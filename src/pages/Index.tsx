@@ -183,6 +183,11 @@ const Index = () => {
             <div className="flex items-center space-x-4">
               <LogViewerTrigger />
               <AIConnectionStatus />
+              <div className="hidden sm:block">
+                <div className="text-xs text-muted-foreground">
+                  Backend & KI Status
+                </div>
+              </div>
               <SettingsDialog />
             </div>
           </div>
