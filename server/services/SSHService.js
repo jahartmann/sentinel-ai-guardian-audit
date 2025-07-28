@@ -521,4 +521,136 @@ pvesh get /nodes/$(hostname)/status`;
         throw new Error(`Unknown script type: ${scriptType}`);
     }
   }
+
+  // Network monitoring methods
+  async startNetworkMonitoring(connectionId) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) {
+      throw new Error('Connection not found');
+    }
+
+    this.logger.info('SSH', 'Starting network monitoring...');
+    
+    // Simulate network monitoring data
+    return {
+      status: 'monitoring',
+      timestamp: new Date().toISOString(),
+      connections: await this.getNetworkConnections(connectionId),
+      processes: await this.getRunningProcesses(connectionId)
+    };
+  }
+
+  async getNetworkConnections(connectionId) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) {
+      throw new Error('Connection not found');
+    }
+
+    try {
+      const result = await this.executeCommand(connectionId, 'ss -tuln');
+      return {
+        command: 'ss -tuln',
+        output: result.stdout,
+        connections: this.parseNetworkConnections(result.stdout)
+      };
+    } catch (error) {
+      this.logger.error('SSH', 'Failed to get network connections', { error });
+      return { connections: [], error: error.message };
+    }
+  }
+
+  async getNetworkAnomalies(connectionId) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) {
+      throw new Error('Connection not found');
+    }
+
+    this.logger.info('SSH', 'Detecting network anomalies...');
+    
+    // Get network data
+    const connections = await this.getNetworkConnections(connectionId);
+    const processes = await this.getRunningProcesses(connectionId);
+    
+    // Simulate anomaly detection
+    const anomalies = [];
+    
+    // Check for suspicious ports
+    if (connections.connections) {
+      connections.connections.forEach(conn => {
+        if (conn.port && [4444, 6666, 31337].includes(parseInt(conn.port))) {
+          anomalies.push({
+            type: 'Suspicious Port',
+            severity: 'high',
+            description: `Verdächtiger Port ${conn.port} erkannt`,
+            timestamp: new Date().toISOString(),
+            affectedIPs: [conn.localAddress],
+            recommendation: 'Überprüfen Sie die Legitimität dieses Ports'
+          });
+        }
+      });
+    }
+    
+    return anomalies;
+  }
+
+  parseNetworkConnections(output) {
+    const connections = [];
+    const lines = output.split('\n');
+    
+    for (const line of lines) {
+      if (line.includes(':') && !line.startsWith('Netid')) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 5) {
+          const localAddr = parts[4];
+          const [localAddress, port] = localAddr.split(':');
+          connections.push({
+            protocol: parts[0],
+            localAddress,
+            port,
+            state: parts[1],
+            raw: line
+          });
+        }
+      }
+    }
+    
+    return connections;
+  }
+
+  async getRunningProcesses(connectionId) {
+    try {
+      const result = await this.executeCommand(connectionId, 'ps aux');
+      return {
+        command: 'ps aux',
+        output: result.stdout,
+        processes: this.parseProcesses(result.stdout)
+      };
+    } catch (error) {
+      this.logger.error('SSH', 'Failed to get running processes', { error });
+      return { processes: [], error: error.message };
+    }
+  }
+
+  parseProcesses(output) {
+    const processes = [];
+    const lines = output.split('\n');
+    
+    for (let i = 1; i < lines.length; i++) { // Skip header
+      const line = lines[i].trim();
+      if (line) {
+        const parts = line.split(/\s+/);
+        if (parts.length >= 11) {
+          processes.push({
+            user: parts[0],
+            pid: parts[1],
+            cpu: parts[2],
+            mem: parts[3],
+            command: parts.slice(10).join(' ')
+          });
+        }
+      }
+    }
+    
+    return processes;
+  }
 }

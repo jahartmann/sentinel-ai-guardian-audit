@@ -446,65 +446,27 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="network" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Netzwerk-Überwachung</h2>
-              <Button 
-                onClick={handleNetworkScan}
-                disabled={isNetworkScanning}
-              >
-                {isNetworkScanning ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Network className="w-4 h-4 mr-2" />
-                )}
-                {isNetworkScanning ? "Scannt..." : "Scan starten"}
-              </Button>
-            </div>
-
-            <Card>
+            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardHeader>
-                <CardTitle>Ungewöhnliche Netzwerk-Ereignisse</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Network className="h-5 w-5" />
+                  Netzwerk-Monitoring
+                </CardTitle>
                 <CardDescription>
-                  KI-gesteuerte Anomalie-Erkennung aktiv
+                  Überwachen Sie Netzwerkaktivitäten und erkennen Sie Anomalien
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Letztes Update: {new Date().toLocaleString('de-DE')}</span>
-                    <Button size="sm" variant="outline" onClick={startNetworkMonitoring}>
-                      <Activity className="w-4 h-4 mr-1" />
-                      Aktualisieren
-                    </Button>
+                <div className="text-center space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    Das erweiterte Netzwerk-Monitoring ist als separate Seite verfügbar.
                   </div>
-                   {networkEvents.length === 0 ? (
-                     <p className="text-muted-foreground text-center py-4">
-                       Keine Netzwerk-Ereignisse erfasst. Klicken Sie auf "Aktualisieren" für eine Live-Analyse.
-                     </p>
-                   ) : (
-                     networkEvents.map((event, index) => (
-                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                         <div className="flex-1">
-                           <div className="flex items-center space-x-2">
-                             <Badge className={getSeverityColor(event.severity)}>
-                               {event.severity}
-                             </Badge>
-                             <Badge variant="outline" className="text-xs">
-                               {event.type}
-                             </Badge>
-                             <span className="font-medium">{event.event}</span>
-                           </div>
-                           <div className="text-sm text-muted-foreground mt-1">
-                             {event.timestamp} • Quelle: {event.source}
-                           </div>
-                         </div>
-                         <Button size="sm" variant="outline">
-                           <Eye className="w-4 h-4 mr-1" />
-                           Details
-                         </Button>
-                       </div>
-                     ))
-                   )}
+                  <Link to="/network-monitoring">
+                    <Button className="w-full">
+                      <Network className="h-4 w-4 mr-2" />
+                      Zu Netzwerk-Monitoring
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

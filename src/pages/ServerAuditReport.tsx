@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useServerManagement } from "@/hooks/useServerManagement";
+import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ import { PDFExport } from "@/components/PDFExport";
 export default function ServerAuditReport() {
   const { serverId } = useParams();
   const [selectedTab, setSelectedTab] = useState("overview");
-  const { servers, auditResults } = useServerManagement();
+  const { servers, auditResults } = useServerManagementBackend();
   
   // Get the actual server data
   const server = servers.find(s => s.id === serverId);
@@ -44,12 +44,12 @@ export default function ServerAuditReport() {
     serverName: server.name,
     hostname: server.hostname,
     ip: server.ip,
-    os: server.os || "Unknown OS",
-    lastScan: server.lastScan || new Date().toISOString(),
-    overallScore: latestAudit.overallScore,
-    securityScore: latestAudit.securityScore,
-    performanceScore: latestAudit.performanceScore,
-    complianceScore: latestAudit.complianceScore,
+    os: (server as any).os || "Unknown OS",
+    lastScan: (server as any).lastScan || new Date().toISOString(),
+    overallScore: latestAudit.scores?.overall || 0,
+    securityScore: latestAudit.scores?.security || 0,
+    performanceScore: latestAudit.scores?.performance || 0,
+    complianceScore: latestAudit.scores?.compliance || 0,
     vulnerabilities: {
       critical: latestAudit.findings.filter(f => f.severity === 'critical').length,
       high: latestAudit.findings.filter(f => f.severity === 'high').length,
@@ -72,10 +72,10 @@ export default function ServerAuditReport() {
       runningProcesses: 0
     },
     compliance: {
-      cis: latestAudit.complianceScore,
-      nist: latestAudit.complianceScore,
-      iso27001: latestAudit.complianceScore,
-      pci: latestAudit.complianceScore
+      cis: latestAudit.scores?.compliance || 0,
+      nist: latestAudit.scores?.compliance || 0,
+      iso27001: latestAudit.scores?.compliance || 0,
+      pci: latestAudit.scores?.compliance || 0
     }
   } : null;
 

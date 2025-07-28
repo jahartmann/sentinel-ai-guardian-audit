@@ -310,7 +310,38 @@ app.post('/api/audit/generate-report', async (req, res) => {
   }
 });
 
-// Network Anomaly Detection
+// Network and System Information
+app.post('/api/network/scan', async (req, res) => {
+  try {
+    const { range } = req.body;
+    
+    // Simulate network scan results
+    const hosts = [
+      {
+        ip: '192.168.1.1',
+        hostname: 'router.local',
+        services: [
+          { port: 80, service: 'HTTP', state: 'open' },
+          { port: 443, service: 'HTTPS', state: 'open' }
+        ]
+      },
+      {
+        ip: '192.168.1.50',
+        hostname: 'server.local', 
+        services: [
+          { port: 22, service: 'SSH', state: 'open' },
+          { port: 80, service: 'HTTP', state: 'open' }
+        ]
+      }
+    ];
+    
+    res.json({ success: true, data: { hosts } });
+  } catch (error) {
+    logger.error('Network', `Network scan failed: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/network/start-monitoring', async (req, res) => {
   try {
     const { serverId } = req.body;
@@ -342,6 +373,23 @@ app.get('/api/network/anomalies/:serverId', async (req, res) => {
     res.json({ success: true, data: anomalies });
   } catch (error) {
     logger.error('Network', `Failed to get anomalies: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/network/connections/:serverId', async (req, res) => {
+  try {
+    const server = await serverManager.getServer(req.params.serverId);
+    if (!server) {
+      return res.status(404).json({ success: false, error: 'Server not found' });
+    }
+
+    const connection = await sshService.connect(server);
+    const connections = await sshService.getNetworkConnections(connection.id);
+    
+    res.json({ success: true, data: connections });
+  } catch (error) {
+    logger.error('Network', `Failed to get connections: ${error.message}`);
     res.status(500).json({ success: false, error: error.message });
   }
 });
