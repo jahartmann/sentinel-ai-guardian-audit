@@ -518,7 +518,7 @@ pct list
 pvesh get /nodes/$(hostname)/status`;
       
       default:
-        throw new Error(\`Unknown script type: \${scriptType}\`);
+        throw new Error(`Unknown script type: ${scriptType}`);
     }
   }
 }
