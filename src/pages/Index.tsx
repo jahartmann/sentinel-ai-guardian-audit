@@ -16,7 +16,7 @@ import { AIConnectionStatus } from "@/components/AIConnectionStatus";
 import ServerManagement from "@/components/ServerManagement";
 import { OllamaConnection } from "@/components/OllamaConnection";
 
-import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
+import { useHybridServerManagement } from "@/hooks/useHybridServerManagement";
 import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -54,7 +54,7 @@ const Index = () => {
     testConnection, 
     startAudit, 
     startNetworkScan 
-  } = useServerManagementBackend();
+  } = useHybridServerManagement();
   const { toast } = useToast();
 
   const handleNetworkScan = async () => {

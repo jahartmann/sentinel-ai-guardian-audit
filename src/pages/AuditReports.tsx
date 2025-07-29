@@ -31,14 +31,14 @@ import {
   AlertTriangle,
   CheckCircle
 } from "lucide-react";
-import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
+import { useHybridServerManagement } from "@/hooks/useHybridServerManagement";
 
 export default function AuditReports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("lastScan");
   const [filterStatus, setFilterStatus] = useState("all");
   
-  const { auditResults, servers, refreshAuditResults } = useServerManagementBackend();
+  const { auditResults, servers, refreshAuditResults } = useHybridServerManagement();
 
   useEffect(() => {
     refreshAuditResults();

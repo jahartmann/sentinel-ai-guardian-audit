@@ -304,7 +304,7 @@ class BackendApiService {
     }
   }
 
-  // Health check
+  // Health check with fallback
   async healthCheck(): Promise<{
     backend: boolean;
     ollama: boolean;
@@ -318,14 +318,36 @@ class BackendApiService {
         this.getOllamaStatus()
       ]);
 
-      const backend = backendResult.status === 'fulfilled' && backendResult.value.success;
+      // Check if response is HTML (indicates backend is not running)
+      const backend = backendResult.status === 'fulfilled' && 
+                     backendResult.value.success &&
+                     !this.isHtmlResponse(backendResult.value);
+                     
       const ollama = ollamaResult.status === 'fulfilled' && 
                     ollamaResult.value.success && 
-                    ollamaResult.value.data?.success;
+                    ollamaResult.value.data?.success &&
+                    !this.isHtmlResponse(ollamaResult.value);
 
       return { backend, ollama, timestamp };
     } catch {
       return { backend: false, ollama: false, timestamp };
+    }
+  }
+
+  private isHtmlResponse(response: any): boolean {
+    return typeof response === 'string' && response.includes('<!DOCTYPE html>');
+  }
+
+  // Check if backend is available
+  async isBackendAvailable(): Promise<boolean> {
+    try {
+      const response = await fetch(this.baseUrl ? `${this.baseUrl}/api/servers` : '/api/servers', {
+        method: 'HEAD',
+        timeout: 5000
+      } as any);
+      return response.ok;
+    } catch {
+      return false;
     }
   }
 }

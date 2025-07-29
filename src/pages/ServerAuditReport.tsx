@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
+import { useHybridServerManagement } from "@/hooks/useHybridServerManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ import { PDFExport } from "@/components/PDFExport";
 export default function ServerAuditReport() {
   const { serverId } = useParams();
   const [selectedTab, setSelectedTab] = useState("overview");
-  const { servers, auditResults } = useServerManagementBackend();
+  const { servers, auditResults } = useHybridServerManagement();
   
   // Get the actual server data
   const server = servers.find(s => s.id === serverId);
