@@ -1,51 +1,124 @@
 import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { useHybridServerManagement } from "@/hooks/useHybridServerManagement";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useServerStore } from "@/stores/serverStore";
+import { dataService } from "@/services/dataService";
+import { MockSystemInfo } from "@/services/mockDataService";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { 
-  Shield, 
   AlertTriangle, 
   CheckCircle, 
   XCircle, 
-  TrendingUp, 
+  Info,
   Download,
+  RefreshCw,
   Server,
-  Clock,
-  Users,
-  Lock,
-  HardDrive,
-  Network,
-  Cpu,
-  Database
+  Shield,
+  Activity,
+  FileText,
+  ArrowLeft
 } from "lucide-react";
 import { PDFExport } from "@/components/PDFExport";
+import { Link } from "react-router-dom";
 
-// No more mock data - using only real server data
+const ServerAuditReport = () => {
+  const { serverId } = useParams<{ serverId: string }>();
+  const { servers, auditResults, systemInfoMap } = useServerStore();
+  const [systemInfo, setSystemInfo] = useState<MockSystemInfo | null>(null);
+  const [loading, setLoading] = useState(false);
 
-export default function ServerAuditReport() {
-  const { serverId } = useParams();
-  const [selectedTab, setSelectedTab] = useState("overview");
-  const { servers, auditResults } = useHybridServerManagement();
-  
-  // Get the actual server data
+  useEffect(() => {
+    const loadData = async () => {
+      if (!serverId) return;
+      
+      setLoading(true);
+      try {
+        const info = await dataService.getSystemInfo(serverId);
+        setSystemInfo(info);
+      } catch (error) {
+        toast.error("Fehler beim Laden der Systeminformationen");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [serverId]);
+
+  const handleRescan = async () => {
+    if (!serverId) return;
+    
+    setLoading(true);
+    try {
+      await dataService.startAudit(serverId);
+      toast.success("Audit erfolgreich gestartet");
+    } catch (error) {
+      toast.error("Fehler beim Starten des Audits");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!serverId) {
+    return <div>Server ID not found</div>;
+  }
+
   const server = servers.find(s => s.id === serverId);
-  const latestAudit = auditResults.filter(r => r.serverId === serverId).sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  )[0];
+  const latestAudit = auditResults.find(audit => audit.serverId === serverId);
+  const serverSystemInfo = systemInfoMap[serverId] || systemInfo;
 
-  // Use actual server data only - no mock data
-  const auditData = server && latestAudit ? {
+  if (!server) {
+    return <div>Server not found</div>;
+  }
+
+  if (!latestAudit) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="container mx-auto max-w-4xl">
+          <div className="mb-6">
+            <Button variant="outline" asChild>
+              <Link to="/">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Zurück zum Dashboard
+              </Link>
+            </Button>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+                Keine Audit-Daten verfügbar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Für diesen Server wurden noch keine Audits durchgeführt.
+              </p>
+              <Button onClick={handleRescan} disabled={loading}>
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Shield className="w-4 h-4 mr-2" />
+                )}
+                Erstes Audit starten
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const auditData = {
     serverId: server.id,
     serverName: server.name,
     hostname: server.hostname,
     ip: server.ip,
-    os: (server as any).os || "Unknown OS",
-    lastScan: (server as any).lastScan || new Date().toISOString(),
     overallScore: latestAudit.scores?.overall || 0,
     securityScore: latestAudit.scores?.security || 0,
     performanceScore: latestAudit.scores?.performance || 0,
@@ -57,42 +130,9 @@ export default function ServerAuditReport() {
       low: latestAudit.findings.filter(f => f.severity === 'low').length,
       info: latestAudit.findings.filter(f => f.severity === 'info').length
     },
-    findings: latestAudit.findings.map(f => ({
-      ...f,
-      id: parseInt(f.id) || Math.random(),
-      status: 'open',
-      cve: 'N/A'
-    })),
-    systemInfo: {
-      uptime: "Nicht verfügbar (Server offline)",
-      loadAverage: "N/A",
-      memoryUsage: "N/A",
-      diskUsage: "N/A",
-      networkConnections: 0,
-      runningProcesses: 0
-    },
-    compliance: {
-      cis: latestAudit.scores?.compliance || 0,
-      nist: latestAudit.scores?.compliance || 0,
-      iso27001: latestAudit.scores?.compliance || 0,
-      pci: latestAudit.scores?.compliance || 0
-    }
-  } : null;
+    findings: latestAudit.findings
+  };
 
-  if (!auditData) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-background/50 p-6">
-        <div className="max-w-7xl mx-auto text-center py-12">
-          <Server className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Keine Audit-Daten verfügbar</h1>
-          <p className="text-muted-foreground">
-            Für diesen Server wurden noch keine Audits durchgeführt oder der Server ist offline.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "critical": return "destructive";
@@ -114,179 +154,187 @@ export default function ServerAuditReport() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-background/50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-6">
+      <div className="container mx-auto max-w-6xl">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Server className="h-6 w-6 text-primary" />
-              <h1 className="text-3xl font-bold text-foreground">Server Audit Report</h1>
+        <div className="mb-6">
+          <Button variant="outline" asChild className="mb-4">
+            <Link to="/">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Zurück zum Dashboard
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">{server.name}</h1>
+              <p className="text-muted-foreground">{server.hostname} ({server.ip})</p>
             </div>
-            <p className="text-muted-foreground">
-              {auditData.serverName} • {auditData.hostname}
-            </p>
-          </div>
-          
-          <div className="flex gap-2">
-            <PDFExport auditData={auditData} />
-            <Button variant="outline">
-              <Clock className="h-4 w-4 mr-2" />
-              Schedule Rescan
-            </Button>
+            <div className="flex items-center space-x-4">
+              <PDFExport auditData={auditData} />
+              <Button variant="outline" onClick={handleRescan} disabled={loading}>
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Rescan
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Overall Score</CardTitle>
+              <CardTitle className="text-sm font-medium">Overall Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{auditData.overallScore}/100</div>
+              <div className="text-2xl font-bold">{auditData.overallScore}/100</div>
               <Progress value={auditData.overallScore} className="mt-2" />
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Security Score</CardTitle>
+              <CardTitle className="text-sm font-medium">Security Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{auditData.securityScore}/100</div>
+              <div className="text-2xl font-bold">{auditData.securityScore}/100</div>
               <Progress value={auditData.securityScore} className="mt-2" />
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Performance</CardTitle>
+              <CardTitle className="text-sm font-medium">Performance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{auditData.performanceScore}/100</div>
+              <div className="text-2xl font-bold">{auditData.performanceScore}/100</div>
               <Progress value={auditData.performanceScore} className="mt-2" />
             </CardContent>
           </Card>
 
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Compliance</CardTitle>
+              <CardTitle className="text-sm font-medium">Compliance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{auditData.complianceScore}/100</div>
+              <div className="text-2xl font-bold">{auditData.complianceScore}/100</div>
               <Progress value={auditData.complianceScore} className="mt-2" />
             </CardContent>
           </Card>
         </div>
 
-        {/* Vulnerability Summary */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Vulnerability Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <Badge variant="destructive">{auditData.vulnerabilities.critical}</Badge>
-                <span className="text-sm text-muted-foreground">Critical</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="destructive">{auditData.vulnerabilities.high}</Badge>
-                <span className="text-sm text-muted-foreground">High</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{auditData.vulnerabilities.medium}</Badge>
-                <span className="text-sm text-muted-foreground">Medium</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{auditData.vulnerabilities.low}</Badge>
-                <span className="text-sm text-muted-foreground">Low</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{auditData.vulnerabilities.info}</Badge>
-                <span className="text-sm text-muted-foreground">Info</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Detailed Tabs */}
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="compliance">Compliance</TabsTrigger>
             <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="space-y-6">
+            {/* System Information */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
+                    <Server className="w-5 h-5" />
                     System Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Operating System:</span>
-                    <span className="font-medium">{auditData.os}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Uptime:</span>
-                    <span className="font-medium">{auditData.systemInfo.uptime}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Load Average:</span>
-                    <span className="font-medium">{auditData.systemInfo.loadAverage}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Memory Usage:</span>
-                    <span className="font-medium">{auditData.systemInfo.memoryUsage}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Disk Usage:</span>
-                    <span className="font-medium">{auditData.systemInfo.diskUsage}</span>
-                  </div>
+                <CardContent className="space-y-4">
+                  {serverSystemInfo ? (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">OS:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.os}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Kernel:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.kernel}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">CPU:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.cpu.model}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Memory:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.memory.total}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Uptime:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.uptime}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Load:</span>
+                        <span className="ml-2 font-medium">{serverSystemInfo.loadAverage}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      {loading ? "Lädt Systeminformationen..." : "Keine Systeminformationen verfügbar"}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              {/* Network & Processes */}
+              <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Network className="h-5 w-5" />
+                    <Activity className="w-5 h-5" />
                     Network & Processes
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Active Connections:</span>
-                    <span className="font-medium">{auditData.systemInfo.networkConnections}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Running Processes:</span>
-                    <span className="font-medium">{auditData.systemInfo.runningProcesses}</span>
-                  </div>
+                <CardContent className="space-y-4">
+                  {serverSystemInfo ? (
+                    <>
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Active Connections</h4>
+                        <div className="text-sm space-y-1">
+                          {serverSystemInfo.network.connections.slice(0, 3).map((conn, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span>{conn.process || 'Unknown'} ({conn.local_address.split(':')[1]})</span>
+                              <Badge variant="outline">{conn.state}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Top Processes</h4>
+                        <div className="text-sm space-y-1">
+                          {serverSystemInfo.processes.slice(0, 3).map((proc, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span>{proc.name}</span>
+                              <span>{proc.cpu}% CPU</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      {loading ? "Lädt Netzwerk-Informationen..." : "Keine Netzwerk-Informationen verfügbar"}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+            <Card>
               <CardHeader>
                 <CardTitle>Security Findings</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {auditData.findings.filter(f => f.category === "Security").map((finding) => (
-                    <div key={finding.id} className="p-4 border border-border/50 rounded-lg space-y-2">
+                    <div key={finding.id} className="p-4 border rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getSeverityIcon(finding.severity)}
@@ -297,14 +345,9 @@ export default function ServerAuditReport() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">{finding.description}</p>
-                      <div className="pt-2 border-t border-border/30">
+                      <div className="pt-2 border-t">
                         <p className="text-sm"><strong>Recommendation:</strong> {finding.recommendation}</p>
                       </div>
-                      {finding.cve && finding.cve !== "N/A" && (
-                        <div className="text-xs text-muted-foreground">
-                          CVE: {finding.cve}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -313,17 +356,17 @@ export default function ServerAuditReport() {
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+            <Card>
               <CardHeader>
                 <CardTitle>Performance Analysis</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {auditData.findings.filter(f => f.category === "Performance").map((finding) => (
-                    <div key={finding.id} className="p-4 border border-border/50 rounded-lg space-y-2">
+                    <div key={finding.id} className="p-4 border rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4" />
+                          <Activity className="h-4 w-4" />
                           <h4 className="font-semibold">{finding.title}</h4>
                         </div>
                         <Badge variant={getSeverityColor(finding.severity)}>
@@ -331,7 +374,7 @@ export default function ServerAuditReport() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">{finding.description}</p>
-                      <div className="pt-2 border-t border-border/30">
+                      <div className="pt-2 border-t">
                         <p className="text-sm"><strong>Recommendation:</strong> {finding.recommendation}</p>
                       </div>
                     </div>
@@ -341,64 +384,24 @@ export default function ServerAuditReport() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="compliance" className="space-y-4">
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-              <CardHeader>
-                <CardTitle>Compliance Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span>CIS Controls</span>
-                      <span className="font-semibold">{auditData.compliance.cis}%</span>
-                    </div>
-                    <Progress value={auditData.compliance.cis} />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span>NIST Framework</span>
-                      <span className="font-semibold">{auditData.compliance.nist}%</span>
-                    </div>
-                    <Progress value={auditData.compliance.nist} />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span>ISO 27001</span>
-                      <span className="font-semibold">{auditData.compliance.iso27001}%</span>
-                    </div>
-                    <Progress value={auditData.compliance.iso27001} />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span>PCI DSS</span>
-                      <span className="font-semibold">{auditData.compliance.pci}%</span>
-                    </div>
-                    <Progress value={auditData.compliance.pci} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="recommendations" className="space-y-4">
-            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+            <Card>
               <CardHeader>
                 <CardTitle>Priority Recommendations</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {auditData.findings.map((finding) => (
-                    <div key={finding.id} className="p-4 border border-border/50 rounded-lg">
+                    <div key={finding.id} className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{finding.title}</h4>
                         <Badge variant={getSeverityColor(finding.severity)}>
                           {finding.severity.toUpperCase()}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">{finding.recommendation}</p>
-                      <div className="text-xs text-muted-foreground">
-                        Status: <span className="capitalize">{finding.status || 'open'}</span>
+                      <p className="text-sm text-muted-foreground mb-2">{finding.description}</p>
+                      <div className="pt-2 border-t">
+                        <p className="text-sm"><strong>Recommendation:</strong> {finding.recommendation}</p>
                       </div>
                     </div>
                   ))}
@@ -410,4 +413,6 @@ export default function ServerAuditReport() {
       </div>
     </div>
   );
-}
+};
+
+export default ServerAuditReport;
