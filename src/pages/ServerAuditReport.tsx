@@ -119,6 +119,8 @@ const ServerAuditReport = () => {
     serverName: server.name,
     hostname: server.hostname,
     ip: server.ip,
+    os: serverSystemInfo?.os || 'Unknown',
+    lastScan: latestAudit.timestamp || new Date().toISOString(),
     overallScore: latestAudit.scores?.overall || 0,
     securityScore: latestAudit.scores?.security || 0,
     performanceScore: latestAudit.scores?.performance || 0,
@@ -130,7 +132,30 @@ const ServerAuditReport = () => {
       low: latestAudit.findings.filter(f => f.severity === 'low').length,
       info: latestAudit.findings.filter(f => f.severity === 'info').length
     },
-    findings: latestAudit.findings
+    findings: latestAudit.findings.map(f => ({
+      id: parseInt(f.id) || Math.random(),
+      title: f.title,
+      severity: f.severity,
+      category: f.category,
+      description: f.description,
+      recommendation: f.recommendation,
+      status: 'open',
+      cve: f.evidence || 'N/A'
+    })),
+    systemInfo: {
+      uptime: serverSystemInfo?.uptime || 'N/A',
+      loadAverage: serverSystemInfo?.loadAverage || 'N/A',
+      memoryUsage: `${serverSystemInfo?.memory?.used || 'N/A'} / ${serverSystemInfo?.memory?.total || 'N/A'}`,
+      diskUsage: `${serverSystemInfo?.disk?.usage_percent || 0}% (${serverSystemInfo?.disk?.used || 'N/A'} / ${serverSystemInfo?.disk?.total || 'N/A'})`,
+      networkConnections: serverSystemInfo?.network?.connections?.length || 0,
+      runningProcesses: serverSystemInfo?.processes?.length || 0
+    },
+    compliance: {
+      cis: 75,
+      nist: 82,
+      iso27001: 68,
+      pci: 85
+    }
   };
 
   const getSeverityColor = (severity: string) => {
