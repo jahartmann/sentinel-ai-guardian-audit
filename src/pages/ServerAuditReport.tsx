@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useServerStore } from "@/stores/serverStore";
-import { dataService } from "@/services/dataService";
 import { MockSystemInfo } from "@/services/mockDataService";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +54,7 @@ const ServerAuditReport = () => {
     
     setLoading(true);
     try {
-      await dataService.startAudit(serverId);
+      startFastAudit(serverId);
       toast.success("Audit erfolgreich gestartet");
     } catch (error) {
       toast.error("Fehler beim Starten des Audits");
@@ -119,37 +118,15 @@ const ServerAuditReport = () => {
     serverName: server.name,
     hostname: server.hostname,
     ip: server.ip,
-    os: serverSystemInfo?.os || 'Unknown',
-    lastScan: latestAudit.timestamp || new Date().toISOString(),
-    overallScore: latestAudit.scores?.overall || 0,
-    securityScore: latestAudit.scores?.security || 0,
-    performanceScore: latestAudit.scores?.performance || 0,
-    complianceScore: latestAudit.scores?.compliance || 0,
-    vulnerabilities: {
-      critical: latestAudit.findings.filter(f => f.severity === 'critical').length,
-      high: latestAudit.findings.filter(f => f.severity === 'high').length,
-      medium: latestAudit.findings.filter(f => f.severity === 'medium').length,
-      low: latestAudit.findings.filter(f => f.severity === 'low').length,
-      info: latestAudit.findings.filter(f => f.severity === 'info').length
-    },
-    findings: latestAudit.findings.map(f => ({
-      id: parseInt(f.id) || Math.random(),
-      title: f.title,
-      severity: f.severity,
-      category: f.category,
-      description: f.description,
-      recommendation: f.recommendation,
-      status: 'open',
-      cve: f.evidence || 'N/A'
-    })),
-    systemInfo: {
-      uptime: serverSystemInfo?.uptime || 'N/A',
-      loadAverage: serverSystemInfo?.loadAverage || 'N/A',
-      memoryUsage: `${serverSystemInfo?.memory?.used || 'N/A'} / ${serverSystemInfo?.memory?.total || 'N/A'}`,
-      diskUsage: `${serverSystemInfo?.disk?.usage_percent || 0}% (${serverSystemInfo?.disk?.used || 'N/A'} / ${serverSystemInfo?.disk?.total || 'N/A'})`,
-      networkConnections: serverSystemInfo?.network?.connections?.length || 0,
-      runningProcesses: serverSystemInfo?.processes?.length || 0
-    },
+    os: latestAudit.systemInfo.os,
+    lastScan: latestAudit.timestamp,
+    overallScore: latestAudit.scores.overall,
+    securityScore: latestAudit.scores.security,
+    performanceScore: latestAudit.scores.performance,
+    complianceScore: latestAudit.scores.compliance,
+    vulnerabilities: latestAudit.vulnerabilities,
+    findings: latestAudit.findings,
+    systemInfo: latestAudit.systemInfo,
     compliance: {
       cis: 75,
       nist: 82,
