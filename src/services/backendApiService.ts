@@ -49,6 +49,8 @@ export interface AuditResult {
   startTime: string;
   endTime?: string;
   duration?: number;
+  // Optional when loaded from backend extended result
+  systemData?: any;
 }
 
 class BackendApiService {
