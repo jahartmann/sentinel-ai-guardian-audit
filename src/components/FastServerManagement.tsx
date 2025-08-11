@@ -263,7 +263,7 @@ export function FastServerManagement() {
       )}
 
       <AddServerDialog
-        onAddServer={addServer}
+        onAddServer={async (server) => { addServer(server); return server; }}
         trigger={null}
       />
 

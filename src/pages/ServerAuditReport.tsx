@@ -24,10 +24,11 @@ import {
 } from "lucide-react";
 import { PDFExport } from "@/components/PDFExport";
 import { Link } from "react-router-dom";
+import { dataAgent } from "@/services/dataAgent";
 
 const ServerAuditReport = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { servers, auditResults, systemInfoMap } = useServerStore();
+  const { servers, systemInfoMap, getFastAudit, startFastAudit } = useServerStore();
   const [systemInfo, setSystemInfo] = useState<MockSystemInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,7 +38,7 @@ const ServerAuditReport = () => {
       
       setLoading(true);
       try {
-        const info = await dataService.getSystemInfo(serverId);
+        const info = await dataAgent.getSystemInfo(serverId);
         setSystemInfo(info);
       } catch (error) {
         toast.error("Fehler beim Laden der Systeminformationen");
@@ -68,7 +69,7 @@ const ServerAuditReport = () => {
   }
 
   const server = servers.find(s => s.id === serverId);
-  const latestAudit = auditResults.find(audit => audit.serverId === serverId);
+  const latestAudit = getFastAudit(serverId);
   const serverSystemInfo = systemInfoMap[serverId] || systemInfo;
 
   if (!server) {
@@ -125,8 +126,24 @@ const ServerAuditReport = () => {
     performanceScore: latestAudit.scores.performance,
     complianceScore: latestAudit.scores.compliance,
     vulnerabilities: latestAudit.vulnerabilities,
-    findings: latestAudit.findings,
-    systemInfo: latestAudit.systemInfo,
+    findings: latestAudit.findings.map((f, idx) => ({
+      id: idx + 1,
+      title: f.title,
+      severity: f.severity,
+      category: f.category,
+      description: f.description,
+      recommendation: f.recommendation,
+      status: f.status,
+      cve: f.cve ?? 'N/A',
+    })),
+    systemInfo: {
+      uptime: latestAudit.systemInfo.uptime,
+      loadAverage: latestAudit.systemInfo.loadAverage,
+      memoryUsage: latestAudit.systemInfo.memoryUsage,
+      diskUsage: latestAudit.systemInfo.diskUsage,
+      networkConnections: latestAudit.systemInfo.networkConnections,
+      runningProcesses: latestAudit.systemInfo.runningProcesses,
+    },
     compliance: {
       cis: 75,
       nist: 82,

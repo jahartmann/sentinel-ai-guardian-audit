@@ -198,7 +198,9 @@ class DataAgent {
   }
 
   private generateSystemInfo(serverId: string) {
+    const server = this.servers.get(serverId);
     const systemInfo: MockSystemInfo = {
+      hostname: server?.hostname || `host-${serverId}`,
       os: serverId.includes('db') ? 'Ubuntu 22.04 LTS' : 'CentOS 8',
       kernel: '5.15.0-89-generic',
       uptime: this.randomUptime(),
@@ -212,7 +214,14 @@ class DataAgent {
       disk: {
         total: '500GB',
         used: `${Math.floor(Math.random() * 300) + 100}GB`,
+        free: '250GB',
         usage_percent: Math.floor(Math.random() * 60) + 20
+      },
+      cpu: {
+        model: 'Intel(R) Xeon(R) CPU',
+        cores: 8,
+        speed: '2.60GHz',
+        usage: Math.floor(Math.random() * 80)
       },
       network: {
         connections: Array.from({ length: Math.floor(Math.random() * 20) + 10 }, (_, i) => ({
@@ -221,7 +230,15 @@ class DataAgent {
           foreign_address: `10.0.0.${i + 1}:443`,
           state: 'ESTABLISHED',
           process: ['nginx', 'mysql', 'apache2', 'sshd'][i % 4]
-        }))
+        })),
+        interfaces: [
+          {
+            name: 'eth0',
+            ip: `192.168.1.${100 + Math.floor(Math.random() * 50)}`,
+            mac: '00:50:56:aa:bb:cc',
+            status: 'UP'
+          }
+        ]
       },
       processes: Array.from({ length: Math.floor(Math.random() * 50) + 30 }, (_, i) => ({
         pid: 1000 + i,
@@ -229,7 +246,22 @@ class DataAgent {
         cpu: Math.floor(Math.random() * 20),
         memory: Math.floor(Math.random() * 10),
         user: ['root', 'www-data', 'mysql', 'admin'][i % 4]
-      }))
+      })),
+      packages: {
+        total: Math.floor(Math.random() * 2000) + 800,
+        upgradable: Math.floor(Math.random() * 50),
+        manager: 'apt'
+      },
+      security: {
+        firewall_status: 'active',
+        ssh_config: {
+          PermitRootLogin: 'no',
+          PasswordAuthentication: 'no',
+          PubkeyAuthentication: 'yes'
+        },
+        failed_logins: Math.floor(Math.random() * 20),
+        last_login: new Date(Date.now() - Math.floor(Math.random() * 6) * 60 * 60 * 1000).toISOString()
+      }
     };
 
     this.systemInfos.set(serverId, systemInfo);
