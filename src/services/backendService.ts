@@ -82,11 +82,47 @@ export class BackendService {
     return this.request('/api/ollama/status');
   }
 
+  async getOllamaModels() {
+    return this.request('/api/ollama/models');
+  }
+
   async sendOllamaChat(model: string, messages: any[]) {
     return this.request('/api/ollama/chat', {
       method: 'POST',
       body: JSON.stringify({ model, messages }),
     });
+  }
+
+  // System Info
+  async getSystemInfo(serverId: string) {
+    return this.request(`/api/system/info/${serverId}`);
+  }
+
+  async gatherSystemInfo(serverId: string) {
+    return this.request('/api/system/gather-info', {
+      method: 'POST',
+      body: JSON.stringify({ serverId }),
+    });
+  }
+
+  // Audits
+  async startAudit(serverId: string, model: string) {
+    return this.request('/api/audit/start', {
+      method: 'POST',
+      body: JSON.stringify({ serverId, model }),
+    });
+  }
+
+  async getAuditStatus(auditId: string) {
+    return this.request(`/api/audit/${auditId}/status`);
+  }
+
+  async getAllAuditResults() {
+    return this.request('/api/audit/results');
+  }
+
+  async getAuditResults(serverId: string) {
+    return this.request(`/api/audit/results/${serverId}`);
   }
 }
 
