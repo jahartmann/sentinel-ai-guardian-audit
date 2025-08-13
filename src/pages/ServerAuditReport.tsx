@@ -1,18 +1,15 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useServerStore } from "@/stores/serverStore";
-import { MockSystemInfo } from "@/services/mockDataService";
+import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
+import {
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
   Info,
   Download,
   RefreshCw,
@@ -23,25 +20,29 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { PDFExport } from "@/components/PDFExport";
-import { Link } from "react-router-dom";
-import { dataAgent } from "@/services/dataAgent";
+import { backendApi } from "@/services/backendApiService";
+import { useServerManagementBackend } from "@/hooks/useServerManagementBackend";
 
 const ServerAuditReport = () => {
   const { serverId } = useParams<{ serverId: string }>();
-  const { servers, systemInfoMap, getFastAudit, startFastAudit } = useServerStore();
-  const [systemInfo, setSystemInfo] = useState<MockSystemInfo | null>(null);
+  const { servers, startAudit } = useServerManagementBackend();
   const [loading, setLoading] = useState(false);
+  const [latestAudit, setLatestAudit] = useState<any | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       if (!serverId) return;
-      
       setLoading(true);
       try {
-        const info = await dataAgent.getSystemInfo(serverId);
-        setSystemInfo(info);
+        const res = await backendApi.getAuditResults(serverId);
+        if (res.success && res.data && (res.data as any[]).length > 0) {
+          const sorted = [...(res.data as any[])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setLatestAudit(sorted[0]);
+        } else {
+          setLatestAudit(null);
+        }
       } catch (error) {
-        toast.error("Fehler beim Laden der Systeminformationen");
+        toast.error("Fehler beim Laden der Audit-Daten");
       } finally {
         setLoading(false);
       }

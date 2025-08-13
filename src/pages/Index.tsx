@@ -6,25 +6,20 @@ import { Progress } from '@/components/ui/progress';
 import { FastServerManagement } from '@/components/FastServerManagement';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { AIConnectionStatus } from '@/components/AIConnectionStatus';
-import { useServerStore } from '@/stores/serverStore';
+import { useServerManagementBackend } from '@/hooks/useServerManagementBackend';
 import { Link } from 'react-router-dom';
 
 export default function Index() {
-  const { 
-    servers, auditResults, fastAudits, systemInfoMap, loading, error,
-    setServers, setAuditResults, setLoading, setError, addServer, removeServer,
-    loadFastData, startFastAudit
-  } = useServerStore();
+  const { servers, auditResults } = useServerManagementBackend();
 
   useEffect(() => {
-    loadFastData();
+    document.title = 'Security Guardian | Dashboard';
   }, []);
 
-  const recentAudits = fastAudits.slice(0, 5);
-  const totalVulnerabilities = fastAudits.reduce((sum, audit) => 
-    sum + audit.vulnerabilities.critical + audit.vulnerabilities.high, 0);
-  const avgSecurityScore = fastAudits.length > 0 ? 
-    Math.round(fastAudits.reduce((sum, audit) => sum + audit.scores.overall, 0) / fastAudits.length) : 0;
+  const recentAudits = [...auditResults].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
+  const totalVulnerabilities = 0;
+  const avgSecurityScore = auditResults.length > 0 ? 
+    Math.round(auditResults.reduce((sum, audit) => sum + (audit.scores.overall || 0), 0) / auditResults.length) : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -98,7 +93,7 @@ export default function Index() {
               <CardTitle className="text-sm font-medium">Letzte Audits</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{fastAudits.length}</div>
+              <div className="text-2xl font-bold">{recentAudits.length}</div>
               <p className="text-xs text-muted-foreground">
                 Heute durchgeführt
               </p>
