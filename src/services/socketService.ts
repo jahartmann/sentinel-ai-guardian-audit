@@ -33,10 +33,17 @@ class SocketService {
     }
 
     this.isConnecting = true;
-    // Use relative URLs for production to avoid CORS issues
-    const serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    // Resolve server URL from settings, fallback to localhost/current host
+    let serverUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'http://localhost:3000' 
       : '';
+    try {
+      const saved = localStorage.getItem('secureai-settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.backendUrl) serverUrl = parsed.backendUrl;
+      }
+    } catch {}
     
     logger.info('system', `🔌 Connecting to WebSocket server: ${serverUrl || 'current host'}`);
 

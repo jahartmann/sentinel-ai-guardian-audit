@@ -15,9 +15,17 @@ export default function Settings() {
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   useEffect(() => {
+    // SEO basics for this page
     document.title = 'Einstellungen | Backend & KI Modell';
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute('content', 'Einstellungen für Backend-URL und KI-Modell-Auswahl mit Live-Status.');
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', 'Einstellungen für Backend-URL und KI-Modell-Auswahl mit Live-Status.');
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', `${window.location.origin}/settings`);
   }, []);
 
   const handleTest = async () => {
