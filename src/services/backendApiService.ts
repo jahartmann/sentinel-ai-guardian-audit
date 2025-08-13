@@ -65,8 +65,18 @@ class BackendApiService {
 
   public async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
-      const url = this.baseUrl ? `${this.baseUrl}${endpoint}` : endpoint;
-      logger.debug('system', `📤 ${options.method || 'GET'} ${endpoint}`);
+      // Resolve base URL from settings if available
+      let base = this.baseUrl;
+      try {
+        const saved = localStorage.getItem('secureai-settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.backendUrl) base = parsed.backendUrl;
+        }
+      } catch {}
+
+      const url = base ? `${base}${endpoint}` : endpoint;
+      logger.debug('system', `📤 ${options.method || 'GET'} ${url}`);
 
       const response = await fetch(url, {
         headers: {

@@ -12,6 +12,7 @@ interface AppSettings {
   language: 'de' | 'en';
   autoScan: boolean;
   scanInterval: number; // in minutes
+  backendUrl: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -23,7 +24,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   language: 'de',
   autoScan: false,
-  scanInterval: 60
+  scanInterval: 60,
+  backendUrl: 'http://localhost:3000'
 };
 
 export const useSettings = () => {
@@ -89,6 +91,23 @@ export const useSettings = () => {
     }
   };
 
+  const testBackendConnection = async (): Promise<boolean> => {
+    const url = settings.backendUrl || 'http://localhost:3000';
+    try {
+      const response = await fetch(`${url}/api/servers`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) return false;
+      if (contentType.includes('text/html')) return false;
+      return true;
+    } catch (error) {
+      console.error('Backend connection test failed:', error);
+      return false;
+    }
+  };
+
   const getAvailableModels = async (): Promise<string[]> => {
     if (!settings.ollama.serverUrl) return [];
     
@@ -110,6 +129,7 @@ export const useSettings = () => {
     updateSettings,
     updateOllamaConfig,
     testOllamaConnection,
+    testBackendConnection,
     getAvailableModels
   };
 };

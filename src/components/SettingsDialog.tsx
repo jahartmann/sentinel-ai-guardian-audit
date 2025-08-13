@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2, Edit3, ChevronDown, Cpu, Plus } from 'lucide-react';
+import { Settings, Brain, Palette, Globe, Shield, CheckCircle, XCircle, Loader2, Edit3, ChevronDown, Cpu, Plus, Server } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,7 +23,8 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [customModelMode, setCustomModelMode] = useState(false);
   const [customModel, setCustomModel] = useState('');
-  const { settings, updateSettings, updateOllamaConfig, testOllamaConnection, getAvailableModels } = useSettings();
+  const [backendConnectionStatus, setBackendConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const { settings, updateSettings, updateOllamaConfig, testOllamaConnection, getAvailableModels, testBackendConnection } = useSettings();
   const { toast } = useToast();
 
   const handleTestConnection = async () => {
@@ -65,11 +66,16 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
     setAvailableModels([]);
   };
 
+  const handleBackendUrlChange = (url: string) => {
+    updateSettings({ backendUrl: url });
+    setBackendConnectionStatus('idle');
+  };
+
   useEffect(() => {
     if (settings.ollama.enabled && settings.ollama.serverUrl && open) {
       handleTestConnection();
     }
-  }, [open, settings.ollama.enabled]);
+  }, [open, settings.ollama.enabled, settings.ollama.serverUrl]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -89,8 +95,12 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue="ollama" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="backend" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="backend" className="flex items-center gap-1">
+              <Server className="w-4 h-4" />
+              <span className="hidden sm:inline">Backend</span>
+            </TabsTrigger>
             <TabsTrigger value="ollama" className="flex items-center gap-1">
               <Brain className="w-4 h-4" />
               <span className="hidden sm:inline">Ollama</span>
@@ -112,6 +122,65 @@ export const SettingsDialog = ({ trigger }: SettingsDialogProps) => {
               <span className="hidden sm:inline">Allgemein</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="backend" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="w-5 h-5" />
+                  Backend Einstellungen
+                  <Badge variant={backendConnectionStatus === 'success' ? 'default' : 'secondary'}>
+                    {backendConnectionStatus === 'success' ? 'Verbunden' : 'Konfiguriert'}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="backend-url">Backend URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="backend-url"
+                      value={settings.backendUrl}
+                      onChange={(e) => handleBackendUrlChange(e.target.value)}
+                      placeholder="http://localhost:3000"
+                    />
+                    <Button
+                      onClick={async () => {
+                        setBackendConnectionStatus('testing');
+                        const ok = await testBackendConnection();
+                        setBackendConnectionStatus(ok ? 'success' : 'error');
+                      }}
+                      disabled={backendConnectionStatus === 'testing'}
+                      variant="outline"
+                    >
+                      {backendConnectionStatus === 'testing' ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : backendConnectionStatus === 'success' ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : backendConnectionStatus === 'error' ? (
+                        <XCircle className="w-4 h-4" />
+                      ) : (
+                        'Test'
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Standard: http://localhost:3000 (lokaler Backend-Server)
+                  </p>
+                </div>
+                {backendConnectionStatus === 'success' && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                    ✅ Backend ist erreichbar
+                  </div>
+                )}
+                {backendConnectionStatus === 'error' && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                    ❌ Verbindung fehlgeschlagen. Prüfen Sie die URL und den Serverstatus.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="ollama" className="space-y-4">
             <Card>

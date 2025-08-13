@@ -8,6 +8,7 @@ import ServerAuditReport from "./pages/ServerAuditReport";
 import AuditReports from "./pages/AuditReports";
 import NetworkMonitoring from "./pages/NetworkMonitoring";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/server/:serverId/audit" element={<ServerAuditReport />} />
           <Route path="/reports" element={<AuditReports />} />
           <Route path="/network-monitoring" element={<NetworkMonitoring />} />
+          <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

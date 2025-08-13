@@ -7,6 +7,7 @@ import { FastServerManagement } from '@/components/FastServerManagement';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { AIConnectionStatus } from '@/components/AIConnectionStatus';
 import { useServerStore } from '@/stores/serverStore';
+import { Link } from 'react-router-dom';
 
 export default function Index() {
   const { 
@@ -45,6 +46,11 @@ export default function Index() {
               <Button size="lg" variant="outline" className="px-8 py-3">
                 Audit starten
               </Button>
+              <Link to="/settings">
+                <Button size="lg" variant="ghost" className="px-8 py-3">
+                  Einstellungen
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

@@ -19,7 +19,15 @@ export class BackendService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<BackendResponse<T>> {
     try {
-      const url = `${this.baseUrl}${endpoint}`;
+      const stored = localStorage.getItem('secureai-settings');
+      let base = this.baseUrl;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.backendUrl) base = parsed.backendUrl;
+        } catch {}
+      }
+      const url = `${base}${endpoint}`;
       logger.info('system', `Making request to ${url}`);
       
       const response = await fetch(url, {
